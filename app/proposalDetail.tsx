@@ -1,10 +1,11 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -51,6 +52,8 @@ export default function ProposalDetailScreen() {
   const [formData, setFormData] = useState<Partial<Proposal>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'persqf' | 'without'>('persqf');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<View>(null);
 
   useEffect(() => {
     if (proposalId) {
@@ -191,6 +194,27 @@ export default function ProposalDetailScreen() {
     );
   }
 
+  function handleDropdownAction(action: string) {
+    setShowDropdown(false);
+    
+    switch (action) {
+      case 'edit':
+        setEditing(true);
+        break;
+      case 'delete':
+        handleDelete();
+        break;
+      case 'downloadProposal':
+        // PDF download functionality is already handled by PDFDownloadButton
+        // This could trigger the same action
+        break;
+      case 'downloadInvoice':
+        // Add invoice download functionality here
+        Alert.alert("Info", "Invoice download functionality will be implemented");
+        break;
+    }
+  }
+
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString();
@@ -227,9 +251,6 @@ export default function ProposalDetailScreen() {
           isBackButton={true}
           rightActions={
             <>
-              {proposal && (
-                <PDFDownloadButton proposal={proposal} size={20} color="#666" />
-              )}
               {editing ? (
                 <TouchableOpacity
                   style={styles.actionButton}
@@ -244,21 +265,76 @@ export default function ProposalDetailScreen() {
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity
+                  ref={dropdownRef}
                   style={styles.actionButton}
-                  onPress={() => setEditing(true)}
+                  onPress={() => setShowDropdown(!showDropdown)}
                 >
-                  <MaterialIcons name="edit" size={24} color="#00234C" />
+                  <MaterialIcons name="more-vert" size={24} color="#00234C" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={handleDelete}
-              >
-                <MaterialIcons name="delete" size={24} color="#F44336" />
-              </TouchableOpacity>
             </>
           }
         />
+
+        {/* Dropdown Menu Modal */}
+        <Modal
+          visible={showDropdown}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDropdown(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowDropdown(false)}
+          >
+            <View style={styles.dropdownContainer}>
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => handleDropdownAction('edit')}
+              >
+                <View style={styles.dropdownIconContainer}>
+                  <MaterialIcons name="person" size={20} color="#666" />
+                  <MaterialIcons name="edit" size={16} color="#666" style={styles.overlayIcon} />
+                </View>
+                <Text style={styles.dropdownText}>Edit Proposal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => handleDropdownAction('delete')}
+              >
+                <View style={styles.dropdownIconContainer}>
+                  <MaterialIcons name="lock" size={20} color="#666" />
+                </View>
+                <Text style={styles.dropdownText}>Delete</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => handleDropdownAction('downloadProposal')}
+              >
+                <View style={styles.dropdownIconContainer}>
+                  <MaterialIcons name="more-vert" size={20} color="#666" />
+                  <MaterialIcons name="download" size={16} color="#666" style={styles.overlayIcon} />
+                </View>
+                <Text style={styles.dropdownText}>Download Proposal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => handleDropdownAction('downloadInvoice')}
+              >
+                <View style={styles.dropdownIconContainer}>
+                  <MaterialIcons name="description" size={20} color="#666" />
+                  <MaterialIcons name="attach-money" size={16} color="#666" style={styles.overlayIcon} />
+                  <MaterialIcons name="download" size={16} color="#666" style={styles.overlayIcon} />
+                </View>
+                <Text style={styles.dropdownText}>Download Invoice</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Status Badges */}
         <View style={styles.statusContainer}>
@@ -599,6 +675,54 @@ const styles = StyleSheet.create({
   
   // Action Button
   actionButton: { padding: 8 },
+  
+  // Dropdown Menu
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 60,
+    paddingRight: 20,
+  },
+  dropdownContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 8,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  dropdownIconContainer: {
+    position: 'relative',
+    marginRight: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  overlayIcon: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+  },
+  dropdownText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '500',
+  },
   
   // Form Elements
   label: { fontSize: 14, color: "#666", marginBottom: 8, fontWeight: "500" },
