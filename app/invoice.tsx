@@ -196,7 +196,7 @@ export default function InvoiceScreen() {
               <Text style={[styles.tableHeaderText, styles.specColumn]}>Specifications</Text>
               <Text style={[styles.tableHeaderText, styles.processColumn]}>Process</Text>
               <Text style={[styles.tableHeaderText, styles.quantityColumn]}>Quantity</Text>
-              <Text style={[styles.tableHeaderText, styles.totalColumn]}>Total Cost</Text>
+              <Text style={[styles.tableHeaderText, styles.totalColumn]}>Total</Text>
             </View>
             <View style={styles.tableRow}>
               <Text style={[styles.tableCellText, styles.srColumn]}>1</Text>
@@ -411,10 +411,10 @@ const styles = StyleSheet.create({
   
   // Table Columns
   srColumn: { width: "10%" },
-  specColumn: { width: "35%", textAlign: "left", paddingLeft: 4 },
+  specColumn: { width: "30%", textAlign: "left", paddingLeft: 4 },
   processColumn: { width: "25%", textAlign: "left", paddingLeft: 4 },
   quantityColumn: { width: "15%" },
-  totalColumn: { width: "15%" },
+  totalColumn: { width: "20%", textAlign: "right", paddingRight: 20 },
   
   // Comments Section
   commentsSection: {
