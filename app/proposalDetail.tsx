@@ -205,12 +205,12 @@ export default function ProposalDetailScreen() {
         handleDelete();
         break;
       case 'downloadProposal':
-        // PDF download functionality is already handled by PDFDownloadButton
-        // This could trigger the same action
+        // Navigate to invoice view for PDF download
+        router.push(`/invoice?proposalId=${proposalId}`);
         break;
       case 'downloadInvoice':
-        // Add invoice download functionality here
-        Alert.alert("Info", "Invoice download functionality will be implemented");
+        // Navigate to invoice view
+        router.push(`/invoice?proposalId=${proposalId}`);
         break;
     }
   }

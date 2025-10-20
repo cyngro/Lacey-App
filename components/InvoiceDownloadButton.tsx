@@ -1,0 +1,107 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useState } from "react";
+import {
+    Alert,
+    StyleSheet,
+    TouchableOpacity
+} from "react-native";
+import { generateInvoicePDF } from "../utils/pdfGenerator";
+
+interface Proposal {
+  _id: string;
+  customerName: string;
+  address: string;
+  city: string;
+  phone: string;
+  specifications: string;
+  process: string;
+  scope: string;
+  persqf: string;
+  sqftTotal: string;
+  quantity: string;
+  totalCost: string;
+  notes: string;
+  companyEmail: string;
+  sent: boolean;
+  signed: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface InvoiceDownloadButtonProps {
+  proposal: Proposal;
+  size?: number;
+  color?: string;
+}
+
+export default function InvoiceDownloadButton({ 
+  proposal, 
+  size = 24, 
+  color = "#00234C" 
+}: InvoiceDownloadButtonProps) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadInvoice = async () => {
+    if (downloading) return;
+    
+    setDownloading(true);
+    try {
+      Alert.alert(
+        "Generate Invoice",
+        `Generate invoice document for ${proposal.customerName}?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Generate",
+            onPress: async () => {
+              try {
+                await generateInvoicePDF(proposal);
+                
+                Alert.alert(
+                  "Invoice Generated",
+                  "Invoice has been generated and is ready to share!",
+                  [{ text: "OK" }]
+                );
+              } catch (error) {
+                console.error('Invoice generation error:', error);
+                Alert.alert(
+                  "Error",
+                  "Failed to generate invoice. Please try again."
+                );
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert("Error", "Failed to generate invoice PDF");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.button, downloading && styles.buttonDisabled]}
+      onPress={handleDownloadInvoice}
+      disabled={downloading}
+    >
+      <MaterialIcons 
+        name={downloading ? "hourglass-empty" : "description"} 
+        size={size} 
+        color={color} 
+      />
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: "transparent",
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+});
