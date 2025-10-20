@@ -127,7 +127,7 @@ export default function DashboardScreen() {
   async function fetchRecentProposals() {
     try {
       setProposalsLoading(true);
-      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=5`);
+      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=10`);
       const data: ProposalsResponse = await response.json();
       
       if (response.ok) {
@@ -194,8 +194,14 @@ export default function DashboardScreen() {
       >
         <View style={styles.proposalHeader}>
           <Text style={styles.customerName}>{item.customerName}</Text>
-          <View style={styles.headerActions}>
-            <PDFDownloadButton proposal={item} size={20} color="#666" />
+          <View style={styles.proposalHeaderActions}>
+            {/* <TouchableOpacity 
+              style={styles.invoiceButtonSmall}
+              onPress={() => router.push(`/invoice?proposalId=${item._id}`)}
+            >
+              <MaterialIcons name="description" size={16} color="#00234C" />
+            </TouchableOpacity>
+            <PDFDownloadButton proposal={item} size={20} color="#666" /> */}
             <View style={styles.statusContainer}>
               {item.sent && (
                 <View style={[styles.statusBadge, styles.sentBadge]}>
@@ -245,16 +251,16 @@ export default function DashboardScreen() {
 
 
 
-        {/* Main Title */}
-        <Text style={styles.mainTitle}>Welcome Dashboard</Text>
-
-        {/* Action Button */}
-        <TouchableOpacity style={styles.actionButton}
-        onPress={() => router.push("/proposal")}
-        >
-          <MaterialIcons name="add" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Proposal / invoice</Text>
-        </TouchableOpacity>
+        {/* Main Title and Action Button */}
+        <View style={styles.titleButtonContainer}>
+          <Text style={styles.mainTitle}>Welcome Dashboard</Text>
+          <TouchableOpacity style={styles.actionButton}
+            onPress={() => router.push("/proposal")}
+          >
+            <MaterialIcons name="add" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Proposal / Invoice</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -391,9 +397,12 @@ export default function DashboardScreen() {
         <View style={styles.proposalsSection}>
           <View style={styles.proposalsHeader}>
             <Text style={styles.proposalsTitle}>Recent Proposals</Text>
-            <TouchableOpacity onPress={() => router.push("/proposalsList")}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              
+              <TouchableOpacity onPress={() => router.push("/proposalsList")}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           
           {proposalsLoading ? (
@@ -450,10 +459,19 @@ const styles = StyleSheet.create({
   // Back Button
   backButton: { alignSelf: "flex-start", paddingVertical: 6, marginBottom: 20 },
   
-  // Main Title
-  mainTitle: { fontSize: 32, fontWeight: "700", color: "#00234C", marginBottom: 20 },
-  
-  // Action Button
+  // Title and Button Container
+  titleButtonContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  mainTitle: { 
+    fontSize: 32, 
+    fontWeight: "700", 
+    color: "#00234C", 
+    flex: 1 
+  },
   actionButton: {
     backgroundColor: "#00234C",
     flexDirection: "row",
@@ -462,10 +480,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: "flex-start",
   },
   actionButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  secondaryActionButton: {
+    backgroundColor: "#f5f5f5",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    flex: 1,
+  },
+  secondaryActionButtonText: { color: "#00234C", fontSize: 16, fontWeight: "600", marginLeft: 8 },
   
   // Search
   searchContainer: {
@@ -529,6 +558,23 @@ const styles = StyleSheet.create({
   proposalsSection: { marginBottom: 30 },
   proposalsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   proposalsTitle: { fontSize: 20, fontWeight: "700", color: "#00234C" },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 12 },
+  invoiceButton: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: "#f5f5f5", 
+    paddingHorizontal: 12, 
+    paddingVertical: 6, 
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#E0E0E0"
+  },
+  invoiceButtonText: { 
+    fontSize: 12, 
+    color: "#00234C", 
+    fontWeight: "600", 
+    marginLeft: 4 
+  },
   viewAllText: { fontSize: 14, color: "#2196F3", fontWeight: "600" },
   proposalsLoading: { flexDirection: "row", alignItems: "center", justifyContent: "center", padding: 20 },
   noProposals: { alignItems: "center", padding: 20 },
@@ -552,7 +598,14 @@ const styles = StyleSheet.create({
   },
   proposalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   customerName: { fontSize: 16, fontWeight: "600", color: "#00234C", flex: 1 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  proposalHeaderActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  invoiceButtonSmall: {
+    backgroundColor: "#f5f5f5",
+    padding: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#E0E0E0"
+  },
   statusContainer: { flexDirection: "row", gap: 8 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   sentBadge: { backgroundColor: "#E3F2FD" },
