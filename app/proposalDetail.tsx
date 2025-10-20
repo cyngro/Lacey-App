@@ -205,16 +205,58 @@ export default function ProposalDetailScreen() {
         handleDelete();
         break;
       case 'downloadProposal':
-        // Navigate to invoice view for PDF download
-        router.push(`/invoice?proposalId=${proposalId}`);
+        // Call PDF download function
+        handleDownloadProposal();
         break;
       case 'downloadInvoice':
-        // Navigate to invoice view
-        router.push(`/invoice?proposalId=${proposalId}`);
+        // Call invoice download function
+        handleDownloadInvoice();
         break;
     }
   }
 
+
+  async function handleDownloadProposal() {
+    if (!proposal) return;
+    
+    try {
+      const { generateProposalPDF } = await import("../utils/pdfGenerator");
+      await generateProposalPDF(proposal);
+      
+      Alert.alert(
+        "Proposal Generated",
+        "Proposal has been generated and is ready to share!",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Proposal generation error:', error);
+      Alert.alert(
+        "Error",
+        "Failed to generate proposal. Please try again."
+      );
+    }
+  }
+
+  async function handleDownloadInvoice() {
+    if (!proposal) return;
+    
+    try {
+      const { generateInvoicePDF } = await import("../utils/pdfGenerator");
+      await generateInvoicePDF(proposal);
+      
+      Alert.alert(
+        "Invoice Generated",
+        "Invoice has been generated and is ready to share!",
+        [{ text: "OK" }]
+      );
+    } catch (error) {
+      console.error('Invoice generation error:', error);
+      Alert.alert(
+        "Error",
+        "Failed to generate invoice. Please try again."
+      );
+    }
+  }
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString();

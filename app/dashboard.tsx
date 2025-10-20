@@ -195,13 +195,13 @@ export default function DashboardScreen() {
         <View style={styles.proposalHeader}>
           <Text style={styles.customerName}>{item.customerName}</Text>
           <View style={styles.proposalHeaderActions}>
-            <TouchableOpacity 
+            {/* <TouchableOpacity 
               style={styles.invoiceButtonSmall}
               onPress={() => router.push(`/invoice?proposalId=${item._id}`)}
             >
               <MaterialIcons name="description" size={16} color="#00234C" />
             </TouchableOpacity>
-            <PDFDownloadButton proposal={item} size={20} color="#666" />
+            <PDFDownloadButton proposal={item} size={20} color="#666" /> */}
             <View style={styles.statusContainer}>
               {item.sent && (
                 <View style={[styles.statusBadge, styles.sentBadge]}>
@@ -251,17 +251,15 @@ export default function DashboardScreen() {
 
 
 
-        {/* Main Title */}
-        <Text style={styles.mainTitle}>Welcome Dashboard</Text>
-
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
+        {/* Main Title and Action Button */}
+        <View style={styles.titleButtonContainer}>
+          <Text style={styles.mainTitle}>Welcome Dashboard</Text>
           <TouchableOpacity style={styles.actionButton}
             onPress={() => router.push("/proposal")}
           >
             <MaterialIcons name="add" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>New Proposal</Text>
-          </TouchableOpacity> 
+            <Text style={styles.actionButtonText}>Proposal / Invoice</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search Bar */}
@@ -461,14 +459,18 @@ const styles = StyleSheet.create({
   // Back Button
   backButton: { alignSelf: "flex-start", paddingVertical: 6, marginBottom: 20 },
   
-  // Main Title
-  mainTitle: { fontSize: 32, fontWeight: "700", color: "#00234C", marginBottom: 20 },
-  
-  // Action Buttons
-  actionButtonsContainer: {
+  // Title and Button Container
+  titleButtonContainer: {
     flexDirection: "row",
-    gap: 12,
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
+  },
+  mainTitle: { 
+    fontSize: 32, 
+    fontWeight: "700", 
+    color: "#00234C", 
+    flex: 1 
   },
   actionButton: {
     backgroundColor: "#00234C",
@@ -478,7 +480,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    flex: 1,
   },
   actionButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
   secondaryActionButton: {

@@ -84,6 +84,9 @@ export default function InvoiceScreen() {
 
   function formatCurrency(amount: string | number) {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num) || num === null || num === undefined) {
+      return '$0.00';
+    }
     return `$${num.toFixed(2)}`;
   }
 
@@ -230,24 +233,24 @@ export default function InvoiceScreen() {
             </View>
             <View style={styles.commentsTable}>
               <View style={styles.commentsTableHeader}>
-                <Text style={[styles.commentsTableHeaderText, styles.srColumn]}>SR</Text>
-                <Text style={[styles.commentsTableHeaderText, styles.textColumn]}>Terms & Conditions</Text>
+                <Text style={[styles.commentsTableHeaderText, styles.commentsSrColumn]}>SR</Text>
+                <Text style={[styles.commentsTableHeaderText, styles.commentsTextColumn]}>Terms & Conditions</Text>
               </View>
               <View style={styles.commentsTableRow}>
-                <Text style={[styles.commentsTableCell, styles.srColumn]}>1</Text>
-                <Text style={[styles.commentsTableCell, styles.textColumn]}>Contractor will provide all necessary equipment, labor and materials</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsSrColumn]}>1</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsTextColumn]}>Contractor will provide all necessary equipment, labor and materials</Text>
               </View>
               <View style={styles.commentsTableRow}>
-                <Text style={[styles.commentsTableCell, styles.srColumn]}>2</Text>
-                <Text style={[styles.commentsTableCell, styles.textColumn]}>Prices are valid for 30 days</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsSrColumn]}>2</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsTextColumn]}>Prices are valid for 30 days</Text>
               </View>
               <View style={styles.commentsTableRow}>
-                <Text style={[styles.commentsTableCell, styles.srColumn]}>3</Text>
-                <Text style={[styles.commentsTableCell, styles.textColumn]}>No money due until customer is satisfied with all completed work</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsSrColumn]}>3</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsTextColumn]}>No money due until customer is satisfied with all completed work</Text>
               </View>
               <View style={styles.commentsTableRow}>
-                <Text style={[styles.commentsTableCell, styles.srColumn]}>4</Text>
-                <Text style={[styles.commentsTableCell, styles.textColumn]}>Contractor will not initiate any change orders</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsSrColumn]}>4</Text>
+                <Text style={[styles.commentsTableCell, styles.commentsTextColumn]}>Contractor will not initiate any change orders</Text>
               </View>
             </View>
           </View>
@@ -434,8 +437,9 @@ const styles = StyleSheet.create({
   },
   commentsContent: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "flex-start",
+    marginRight: 10,
   },
   commentsList: {
     flex: 1,
@@ -480,16 +484,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   
-  // Table Columns
-  srColumn: { width: "15%", textAlign: "center" },
-  textColumn: { width: "85%", textAlign: "left", paddingLeft: 8 },
+  // Comments Table Columns
+  commentsSrColumn: { width: "15%", textAlign: "center" },
+  commentsTextColumn: { width: "85%", textAlign: "left", paddingLeft: 8 },
   totalsSection: {
     width: 200,
-    alignSelf: "flex-start",
+    alignSelf: "flex-end",
   },
   totalRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
     marginBottom: 8,
     paddingVertical: 4,
   },
