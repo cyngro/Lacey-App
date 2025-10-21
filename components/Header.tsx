@@ -15,25 +15,31 @@ interface HeaderProps {
   logo?: any;
   showBackButton?: boolean;
   onBackPress?: () => void;
+  rightActions?: React.ReactNode;
+  centerLogo?: boolean;
+  rightLogo?: boolean;
 }
 
 export default function Header({ 
   title,
   logo,
   showBackButton = false,
-  onBackPress
+  onBackPress,
+  rightActions,
+  centerLogo = false,
+  rightLogo = false
 }: HeaderProps) {
   const { selectedCompany } = useAuth();
   const companyInfo = getCompanyInfo(selectedCompany);
 
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, centerLogo && styles.headerCenter, rightLogo && styles.headerRight]}>
       {showBackButton && (
         <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
           <MaterialIcons name="arrow-back" size={24} color="#00234C" />
         </TouchableOpacity>
       )}
-      <View style={styles.logoContainer}>
+      <View style={[styles.logoContainer, centerLogo && styles.logoContainerCenter, rightLogo && styles.logoContainerRight]}>
         {companyInfo ? (
           <View style={styles.companyInfo}>
             <Image 
@@ -58,6 +64,11 @@ export default function Header({
           />
         )}
       </View>
+      {rightActions && (
+        <View style={styles.rightActions}>
+          {rightActions}
+        </View>
+      )}
     </View>
   );
 }
@@ -66,17 +77,36 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     marginTop: 10,
     marginLeft: 10,
     marginBottom: 20,
+  },
+  headerCenter: {
+    justifyContent: "center",
+  },
+  headerRight: {
+    justifyContent: "flex-start",
   },
   backButton: {
     padding: 8,
     marginRight: 12,
   },
+  rightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  logoContainerCenter: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  logoContainerRight: {
+    flex: 1,
+    justifyContent: "flex-start",
   },
   logo: {
     width: 150,

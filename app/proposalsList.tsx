@@ -17,6 +17,7 @@ import {
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/Header";
+import { getToken } from "../utils/authStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -63,7 +64,20 @@ export default function ProposalsListScreen() {
       setLoading(true);
       const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
       const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
-      const response = await fetch(`${API_URL}/api/proposals?page=${currentPage}&limit=10${searchParam}${companyParam}`);
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_URL}/api/proposals?page=${currentPage}&limit=10${searchParam}${companyParam}`, {
+        headers
+      });
       const data: ProposalsResponse = await response.json();
       
       if (response.ok) {
@@ -233,15 +247,15 @@ export default function ProposalsListScreen() {
           title="Proposals"
           showBackButton={true}
           onBackPress={() => router.back()}
+          rightActions={
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => router.push("/proposal")}
+            >
+              <MaterialIcons name="add" size={24} color="#00234C" />
+            </TouchableOpacity>
+          }
         />
-        
-        {/* Add Proposal Button */}
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push("/proposal")}
-        >
-          <MaterialIcons name="add" size={24} color="#00234C" />
-        </TouchableOpacity>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>

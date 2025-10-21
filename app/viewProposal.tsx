@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { API_URL } from "../constants/api";
 import Header from "../components/Header";
+import { getToken } from "../utils/authStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -58,7 +59,17 @@ export default function ViewProposalScreen({ navigation, route }: { navigation?:
     if (!validateId(id)) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/proposals/${encodeURIComponent(id)}`);
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const res = await fetch(`${API_URL}/proposals/${encodeURIComponent(id)}`, { headers });
       const data = await res.json();
       if (!res.ok) {
         Alert.alert("Not found", data?.message || "Proposal not found");

@@ -17,6 +17,7 @@ import {
 import Header from "../components/Header";
 import InvoiceDownloadButton from "../components/InvoiceDownloadButton";
 import { API_URL } from "../constants/api";
+import { getToken } from "../utils/authStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -60,7 +61,18 @@ export default function InvoiceScreen() {
   async function fetchProposal() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/proposals/${proposalId}`);
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_URL}/api/proposals/${proposalId}`, { headers });
       const data = await response.json();
       
       if (response.ok) {
@@ -116,15 +128,13 @@ export default function InvoiceScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Header 
-          onMenuPress={() => router.back()}
-          logo={require("../assets/images/dashbord.png")}
-          isBackButton={true}
+          title="Create Invoice"
+          showBackButton={true}
+          onBackPress={() => router.back()}
           rightActions={
-            <>
-              {proposal && (
-                <InvoiceDownloadButton proposal={proposal} size={20} color="#666" />
-              )}
-            </>
+            proposal && (
+              <InvoiceDownloadButton proposal={proposal} size={20} color="#666" />
+            )
           }
         />
 

@@ -20,6 +20,7 @@ import Sidebar from "../components/Sidebar";
 import BottomNavbar from "../components/BottomNavbar";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
+import { getToken } from "../utils/authStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -76,9 +77,19 @@ export default function DashboardScreen() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_URL}/dashboard`, {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        headers,
       });
       const data = await response.json();
       if (response.ok) {
@@ -93,6 +104,45 @@ export default function DashboardScreen() {
     }
   }, []);
 
+  const fetchTotalCounts = useCallback(async () => {
+    try {
+      const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
+      const url = `${API_URL}/api/proposals?page=1&limit=1000${companyParam}`; // Get all proposals for counting
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
+      const data: ProposalsResponse = await response.json();
+      
+      if (response.ok) {
+        // Calculate actual counts from all proposals data
+        const totalProposalsCount = data.total || 0;
+        const sentProposalsCount = data.data?.filter((proposal: Proposal) => proposal.sent)?.length || 0;
+        
+        // Update dashboard data with actual counts
+        setDashboardData(prev => ({
+          ...prev,
+          proposals: totalProposalsCount,
+          invoices: sentProposalsCount,
+          views: prev?.views || { count: 0, change: 0, breakdown: { followers: 0, nonFollowers: 0 } },
+          reach: prev?.reach || { count: 0, change: 0, breakdown: { followers: 0, nonFollowers: 0 } },
+          interactions: prev?.interactions || { count: 0, change: 0, breakdown: { followers: 0, nonFollowers: 0 } },
+          follows: prev?.follows || { count: 0, change: 0, breakdown: { unfollows: 0, notFollowers: 0 } }
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to fetch total counts:", error);
+    }
+  }, [selectedCompany]);
+
   const fetchRecentProposals = useCallback(async () => {
     try {
       setProposalsLoading(true);
@@ -101,7 +151,17 @@ export default function DashboardScreen() {
       console.log("Dashboard - Fetching proposals for company:", selectedCompany);
       console.log("Dashboard - API URL:", url);
       
-      const response = await fetch(url);
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
       const data: ProposalsResponse = await response.json();
       
       console.log("Dashboard - Proposals response:", data);
@@ -121,26 +181,29 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     fetchDashboardData();
+    fetchTotalCounts();
     fetchRecentProposals();
-  }, [fetchDashboardData, fetchRecentProposals]);
+  }, [fetchDashboardData, fetchTotalCounts, fetchRecentProposals]);
 
   // Refetch proposals when selectedCompany changes
   useEffect(() => {
     if (selectedCompany) {
+      fetchTotalCounts();
       fetchRecentProposals();
     }
-  }, [selectedCompany, fetchRecentProposals]);
+  }, [selectedCompany, fetchTotalCounts, fetchRecentProposals]);
 
   // Refresh proposals when screen comes into focus (e.g., returning from proposal detail)
   useFocusEffect(
     useCallback(() => {
+      fetchTotalCounts();
       fetchRecentProposals();
-    }, [fetchRecentProposals])
+    }, [fetchTotalCounts, fetchRecentProposals])
   );
 
   async function handleRefresh() {
     setRefreshing(true);
-    await fetchRecentProposals();
+    await Promise.all([fetchTotalCounts(), fetchRecentProposals()]);
     setRefreshing(false);
   }
 
@@ -269,7 +332,7 @@ export default function DashboardScreen() {
         </View>
 
         {/* Search Bar */}
-        <View style={styles.searchContainer}>
+        {/* <View style={styles.searchContainer}>
           <MaterialIcons name="search" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
@@ -284,18 +347,18 @@ export default function DashboardScreen() {
             returnKeyType="search"
           />
         </View>
-        {!!searchError && <Text style={styles.errorText}>{searchError}</Text>}
+        {!!searchError && <Text style={styles.errorText}>{searchError}</Text>} */}
 
         {/* Summary Cards */}
         <View style={styles.summaryContainer}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryTitle}>Invoice</Text>
-            <Text style={styles.summaryNumber}>{dashboardData?.invoices || 15}</Text>
+            <Text style={styles.summaryNumber}>{dashboardData?.proposals}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={[styles.summaryCard, { backgroundColor: "#2196F3" }]}>
             <Text style={styles.summaryTitle}>Proposals</Text>
-            <Text style={styles.summaryNumber}>{dashboardData?.proposals || 10}</Text>
+            <Text style={styles.summaryNumber}>{dashboardData?.proposals}</Text>
           </View>
         </View>
 
