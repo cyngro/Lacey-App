@@ -86,7 +86,7 @@ export default function DashboardScreen() {
           style: "destructive",
           onPress: async () => {
             await logout();
-            router.push("/login");
+            router.push("/");
           }
         }
       ]
