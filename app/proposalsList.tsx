@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { API_URL } from "../constants/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
 
@@ -43,6 +44,7 @@ interface ProposalsResponse {
 
 export default function ProposalsListScreen() {
   const router = useRouter();
+  const { selectedCompany, logout } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +61,8 @@ export default function ProposalsListScreen() {
     try {
       setLoading(true);
       const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : "";
-      const response = await fetch(`${API_URL}/api/proposals?page=${currentPage}&limit=10${searchParam}`);
+      const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
+      const response = await fetch(`${API_URL}/api/proposals?page=${currentPage}&limit=10${searchParam}${companyParam}`);
       const data: ProposalsResponse = await response.json();
       
       if (response.ok) {
@@ -228,11 +231,29 @@ export default function ProposalsListScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={async () => {
+              Alert.alert(
+                "Logout",
+                "Are you sure you want to logout?",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { 
+                    text: "Logout", 
+                    style: "destructive",
+                    onPress: async () => {
+                      await logout();
+                    }
+                  }
+                ]
+              );
+            }}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#00234C" />
+            <MaterialIcons name="logout" size={24} color="#00234C" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Proposals</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.headerTitle}>Proposals</Text>
+            <Text style={styles.companyTitle}>{selectedCompany}</Text>
+          </View>
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => router.push("/proposal")}
@@ -289,7 +310,9 @@ const styles = StyleSheet.create({
   // Header
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 20, marginBottom: 20 },
   backButton: { padding: 8 },
+  titleContainer: { flex: 1, alignItems: "center" },
   headerTitle: { fontSize: 24, fontWeight: "700", color: "#00234C" },
+  companyTitle: { fontSize: 16, fontWeight: "500", color: "#666", marginTop: 2 },
   addButton: { padding: 8 },
   
   // Search

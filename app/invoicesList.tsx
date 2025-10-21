@@ -16,6 +16,7 @@ import {
 import Header from "../components/Header";
 import InvoiceDownloadButton from "../components/InvoiceDownloadButton";
 import { API_URL } from "../constants/api";
+import { useAuth } from "../contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
 
@@ -50,6 +51,7 @@ interface ProposalsResponse {
 
 export default function InvoicesListScreen() {
   const router = useRouter();
+  const { selectedCompany, logout } = useAuth();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,7 +63,8 @@ export default function InvoicesListScreen() {
   async function fetchProposals() {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=50`);
+      const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
+      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=50${companyParam}`);
       const data: ProposalsResponse = await response.json();
       
       if (response.ok) {
@@ -159,7 +162,22 @@ export default function InvoicesListScreen() {
       <View style={styles.container}>
         {/* Header */}
         <Header 
-          onMenuPress={() => router.back()}
+          onMenuPress={async () => {
+            Alert.alert(
+              "Logout",
+              "Are you sure you want to logout?",
+              [
+                { text: "Cancel", style: "cancel" },
+                { 
+                  text: "Logout", 
+                  style: "destructive",
+                  onPress: async () => {
+                    await logout();
+                  }
+                }
+              ]
+            );
+          }}
           logo={require("../assets/images/dashbord.png")}
           isBackButton={true}
           rightActions={
@@ -176,6 +194,7 @@ export default function InvoicesListScreen() {
         {/* Title */}
         <Text style={styles.title}>Invoices</Text>
         <Text style={styles.subtitle}>Generate invoices from your proposals</Text>
+        <Text style={styles.companyTitle}>{selectedCompany}</Text>
 
         {/* Invoices List */}
         {proposals.length > 0 ? (
@@ -233,7 +252,8 @@ const styles = StyleSheet.create({
   
   // Title
   title: { fontSize: 28, fontWeight: "700", color: "#00234C", marginBottom: 8 },
-  subtitle: { fontSize: 16, color: "#666", marginBottom: 24 },
+  subtitle: { fontSize: 16, color: "#666", marginBottom: 8 },
+  companyTitle: { fontSize: 18, fontWeight: "600", color: "#666", marginBottom: 24 },
   
   // List
   listContainer: { paddingBottom: 20 },

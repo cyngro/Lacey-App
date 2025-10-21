@@ -65,7 +65,7 @@ interface ProposalsResponse {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, selectedCompany } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -98,6 +98,13 @@ export default function DashboardScreen() {
     fetchRecentProposals();
   }, []);
 
+  // Refetch proposals when selectedCompany changes
+  useEffect(() => {
+    if (selectedCompany) {
+      fetchRecentProposals();
+    }
+  }, [selectedCompany]);
+
   // Refresh proposals when screen comes into focus (e.g., returning from proposal detail)
   useFocusEffect(
     useCallback(() => {
@@ -127,11 +134,21 @@ export default function DashboardScreen() {
   async function fetchRecentProposals() {
     try {
       setProposalsLoading(true);
-      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=10`);
+      const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
+      const url = `${API_URL}/api/proposals?page=1&limit=10${companyParam}`;
+      console.log("Dashboard - Fetching proposals for company:", selectedCompany);
+      console.log("Dashboard - API URL:", url);
+      
+      const response = await fetch(url);
       const data: ProposalsResponse = await response.json();
+      
+      console.log("Dashboard - Proposals response:", data);
+      console.log("Dashboard - Number of proposals:", data.data?.length || 0);
       
       if (response.ok) {
         setProposals(data.data);
+      } else {
+        console.log("Dashboard - Failed to fetch proposals, status:", response.status);
       }
     } catch (error) {
       console.error("Failed to fetch proposals:", error);
@@ -253,7 +270,9 @@ export default function DashboardScreen() {
 
         {/* Main Title and Action Button */}
         <View style={styles.titleButtonContainer}>
-          <Text style={styles.mainTitle}>Welcome Dashboard</Text>
+          <Text style={styles.mainTitle}>
+            {selectedCompany ? `${selectedCompany} Dashboard` : 'Welcome Dashboard'}
+          </Text>
           <TouchableOpacity style={styles.actionButton}
             onPress={() => router.push("/proposal")}
           >

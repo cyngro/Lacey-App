@@ -4,7 +4,9 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, selectedCompany } = useAuth();
+
+  console.log("Layout: isAuthenticated:", isAuthenticated, "selectedCompany:", selectedCompany, "isLoading:", isLoading);
 
   if (isLoading) {
     return (
@@ -16,20 +18,25 @@ function AppContent() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      {isAuthenticated ? (
+      {!isAuthenticated ? (
         <>
           <Stack.Screen name="index" />
-          <Stack.Screen name="dashboard" />
-          <Stack.Screen name="proposal" />
-          <Stack.Screen name="proposalsList" />
-          <Stack.Screen name="proposalDetail" />
-          <Stack.Screen name="viewInvoice" />
-          <Stack.Screen name="viewProposal" />
+          <Stack.Screen name="signUp" />
+        </>
+      ) : !selectedCompany ? (
+        <>
+          <Stack.Screen name="company" />
         </>
       ) : (
         <>
-          <Stack.Screen name="login" />
-          <Stack.Screen name="signUp" />
+          <Stack.Screen name="dashboard" />
+          <Stack.Screen name="proposalsList" />
+          <Stack.Screen name="proposal" />
+          <Stack.Screen name="proposalDetail" />
+          <Stack.Screen name="viewInvoice" />
+          <Stack.Screen name="viewProposal" />
+          <Stack.Screen name="invoice" />
+          <Stack.Screen name="invoicesList" />
         </>
       )}
     </Stack>
