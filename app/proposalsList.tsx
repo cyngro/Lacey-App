@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
+import Header from "../components/Header";
 
 const { width } = Dimensions.get("window");
 
@@ -228,39 +229,19 @@ export default function ProposalsListScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={async () => {
-              Alert.alert(
-                "Logout",
-                "Are you sure you want to logout?",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  { 
-                    text: "Logout", 
-                    style: "destructive",
-                    onPress: async () => {
-                      await logout();
-                    }
-                  }
-                ]
-              );
-            }}
-          >
-            <MaterialIcons name="logout" size={24} color="#00234C" />
-          </TouchableOpacity>
-          <View style={styles.titleContainer}>
-            <Text style={styles.headerTitle}>Proposals</Text>
-            <Text style={styles.companyTitle}>{selectedCompany}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => router.push("/proposal")}
-          >
-            <MaterialIcons name="add" size={24} color="#00234C" />
-          </TouchableOpacity>
-        </View>
+        <Header 
+          title="Proposals"
+          showBackButton={true}
+          onBackPress={() => router.back()}
+        />
+        
+        {/* Add Proposal Button */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push("/proposal")}
+        >
+          <MaterialIcons name="add" size={24} color="#00234C" />
+        </TouchableOpacity>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>

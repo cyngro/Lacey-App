@@ -16,14 +16,12 @@ import {
   View
 } from "react-native";
 import Header from "../components/Header";
-import PDFDownloadButton from "../components/PDFDownloadButton";
 import Sidebar from "../components/Sidebar";
+import BottomNavbar from "../components/BottomNavbar";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
 
 const { width } = Dimensions.get("window");
-
-type NavigationLike = { navigate: (route: string) => void; goBack?: () => void } | undefined;
 
 interface DashboardData {
   invoices: number;
@@ -65,7 +63,7 @@ interface ProposalsResponse {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { logout, selectedCompany } = useAuth();
+  const { selectedCompany } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -74,45 +72,9 @@ export default function DashboardScreen() {
   const [proposalsLoading, setProposalsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'chat' | 'profile'>('home');
 
-  async function handleLogout() {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.push("/");
-          }
-        }
-      ]
-    );
-  }
-
-  useEffect(() => {
-    fetchDashboardData();
-    fetchRecentProposals();
-  }, []);
-
-  // Refetch proposals when selectedCompany changes
-  useEffect(() => {
-    if (selectedCompany) {
-      fetchRecentProposals();
-    }
-  }, [selectedCompany]);
-
-  // Refresh proposals when screen comes into focus (e.g., returning from proposal detail)
-  useFocusEffect(
-    useCallback(() => {
-      fetchRecentProposals();
-    }, [])
-  );
-
-  async function fetchDashboardData() {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/dashboard`, {
         method: "GET",
@@ -124,14 +86,14 @@ export default function DashboardScreen() {
       } else {
         Alert.alert("Error", "Failed to load dashboard data");
       }
-    } catch (error) {
+    } catch {
       // Alert.alert("Network Error", "Unable to connect to server");
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  async function fetchRecentProposals() {
+  const fetchRecentProposals = useCallback(async () => {
     try {
       setProposalsLoading(true);
       const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
@@ -155,7 +117,26 @@ export default function DashboardScreen() {
     } finally {
       setProposalsLoading(false);
     }
-  }
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchRecentProposals();
+  }, [fetchDashboardData, fetchRecentProposals]);
+
+  // Refetch proposals when selectedCompany changes
+  useEffect(() => {
+    if (selectedCompany) {
+      fetchRecentProposals();
+    }
+  }, [selectedCompany, fetchRecentProposals]);
+
+  // Refresh proposals when screen comes into focus (e.g., returning from proposal detail)
+  useFocusEffect(
+    useCallback(() => {
+      fetchRecentProposals();
+    }, [fetchRecentProposals])
+  );
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -188,7 +169,7 @@ export default function DashboardScreen() {
       } else {
         Alert.alert("Search Error", data.message || "Search failed");
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Network Error", "Search request failed");
     }
   }
@@ -201,6 +182,15 @@ export default function DashboardScreen() {
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString();
+  }
+
+  function handleTabPress(tab: 'home' | 'chat' | 'profile') {
+    setActiveTab(tab);
+    if (tab === 'chat') {
+      router.push('/chat');
+    } else if (tab === 'profile') {
+      router.push('/profile');
+    }
   }
 
   function renderProposal({ item }: { item: Proposal }) {
@@ -261,10 +251,7 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <Header 
-          onMenuPress={() => setSidebarVisible(true)}
-          logo={require("../assets/images/dashbord.png")}
-        />
+        <Header />
 
 
 
@@ -412,50 +399,44 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Recent Proposals Section */}
-        <View style={styles.proposalsSection}>
-          <View style={styles.proposalsHeader}>
-            <Text style={styles.proposalsTitle}>Recent Proposals</Text>
-            <View style={styles.headerActions}>
-              
-              <TouchableOpacity onPress={() => router.push("/proposalsList")}>
-                <Text style={styles.viewAllText}>View All</Text>
-              </TouchableOpacity>
+        {/* Recent Proposals Section - Only show if proposals are available */}
+        {proposals.length > 0 && (
+          <View style={styles.proposalsSection}>
+            <View style={styles.proposalsHeader}>
+              <Text style={styles.proposalsTitle}>Recent Proposals</Text>
+              <View style={styles.headerActions}>
+                <TouchableOpacity onPress={() => router.push("/proposalsList")}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              </View>
             </View>
+            
+            {proposalsLoading ? (
+              <View style={styles.proposalsLoading}>
+                <ActivityIndicator size="small" color="#00234C" />
+                <Text style={styles.loadingText}>Loading proposals...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={proposals}
+                renderItem={renderProposal}
+                keyExtractor={(item) => item._id}
+                showsVerticalScrollIndicator={false}
+                scrollEnabled={false}
+                refreshControl={
+                  <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+                }
+              />
+            )}
           </View>
-          
-          {proposalsLoading ? (
-            <View style={styles.proposalsLoading}>
-              <ActivityIndicator size="small" color="#00234C" />
-              <Text style={styles.loadingText}>Loading proposals...</Text>
-            </View>
-          ) : proposals.length > 0 ? (
-            <FlatList
-              data={proposals}
-              renderItem={renderProposal}
-              keyExtractor={(item) => item._id}
-              showsVerticalScrollIndicator={false}
-              scrollEnabled={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-              }
-            />
-          ) : (
-            <View style={styles.noProposals}>
-              <Text style={styles.noProposalsText}>No proposals yet</Text>
-              <TouchableOpacity 
-                style={styles.createProposalButton}
-                onPress={() => router.push("/proposal")}
-              >
-                <Text style={styles.createProposalText}>Create Your First Proposal</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+        )}
       </ScrollView>
       
       {/* Sidebar */}
       <Sidebar visible={sidebarVisible} onClose={() => setSidebarVisible(false)} />
+      
+      {/* Bottom Navigation */}
+      <BottomNavbar activeTab={activeTab} onTabPress={handleTabPress} />
     </SafeAreaView>
   );
 }

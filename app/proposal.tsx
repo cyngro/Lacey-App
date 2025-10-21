@@ -195,11 +195,9 @@ export default function ProposalScreen() {
         >
           {/* Header */}
           <Header 
-            onMenuPress={() => router.back()}
             title="Create Proposal"
-            showMenu={true}
-            showLogout={false}
-            isBackButton={true}
+            showBackButton={true}
+            onBackPress={() => router.back()}
           />
 
         {/* Logo */}

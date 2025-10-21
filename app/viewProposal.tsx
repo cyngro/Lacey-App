@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { API_URL } from "../constants/api";
+import Header from "../components/Header";
 
 const { width } = Dimensions.get("window");
 
@@ -86,13 +87,11 @@ export default function ViewProposalScreen({ navigation, route }: { navigation?:
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation?.goBack?.() || navigation?.navigate?.("Dashboard")} style={styles.backBtn}>
-            <MaterialIcons name="arrow-back" size={22} color="#00234C" />
-          </TouchableOpacity>
-          <Text style={styles.title}>View Proposal</Text>
-          <View style={{ width: 22 }} />
-        </View>
+        <Header 
+          title="View Proposal"
+          showBackButton={true}
+          onBackPress={() => navigation?.goBack?.() || navigation?.navigate?.("Dashboard")}
+        />
 
         {/* ID Input */}
         {!proposal && (
