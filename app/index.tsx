@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import FaceRecognition from "../components/FaceRecognition";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
 import { saveToken } from "../utils/authStorage";
@@ -34,6 +35,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ identifier?: string; password?: string; general?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [showFaceRecognition, setShowFaceRecognition] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const isEmail = useMemo(() => /.+@.+\..+/.test(identifier.trim()), [identifier]);
@@ -98,6 +100,20 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleFaceRecognition() {
+    setShowFaceRecognition(true);
+  }
+
+  function handleFaceDetected(faceData: any) {
+    console.log("Face detected:", faceData);
+    setShowFaceRecognition(false);
+    Alert.alert("Face Recognition", "Face detected successfully! Please complete login with your credentials.");
+  }
+
+  function handleCloseFaceRecognition() {
+    setShowFaceRecognition(false);
   }
 
   return (
@@ -202,6 +218,15 @@ export default function LoginScreen() {
             <Text style={styles.forgotPassword}>Forgot Password</Text>
           </TouchableOpacity>
 
+          {/* Face Recognition Button */}
+          <TouchableOpacity 
+            style={styles.faceRecognitionButton}
+            onPress={handleFaceRecognition}
+          >
+            <MaterialIcons name="face" size={20} color="#fff" />
+            <Text style={styles.faceRecognitionButtonText}>Face Recognition</Text>
+          </TouchableOpacity>
+
           {/* Login Button */}
           <TouchableOpacity
             style={[styles.loginButton, (loading || !identifier || !password) && styles.loginButtonDisabled]}
@@ -227,6 +252,16 @@ export default function LoginScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+      
+      {/* Face Recognition Modal */}
+      {showFaceRecognition && (
+        <View style={styles.faceRecognitionModal}>
+          <FaceRecognition
+            onFaceDetected={handleFaceDetected}
+            onClose={handleCloseFaceRecognition}
+          />
+        </View>
+      )}
     </ImageBackground>
   );
 }
@@ -362,5 +397,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#fff",
     fontWeight: "700",
+  },
+  faceRecognitionButton: {
+    backgroundColor: "#4CAF50",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  faceRecognitionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  faceRecognitionModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
 });

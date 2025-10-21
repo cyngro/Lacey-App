@@ -93,7 +93,7 @@ export default function SignUpScreen() {
         return;
       }
       Alert.alert("Success", data?.msg || "Account created successfully!", [
-        { text: "OK", onPress: () => router.push("/login") }
+        { text: "OK", onPress: () => router.push("/") }
       ]);
     } catch (e) {
       Alert.alert("Network error", "Unable to connect to server. Please check your internet connection and try again.");
@@ -122,7 +122,7 @@ export default function SignUpScreen() {
             </View>
             <TouchableOpacity
               accessibilityRole="button"
-              onPress={() => router.push("/login")}
+              onPress={() => router.push("/")}
               style={styles.backButton}
             >
               <MaterialIcons name="arrow-back" size={22} color="#00234C" />
@@ -232,7 +232,7 @@ export default function SignUpScreen() {
             {/* Login Link */}
             <View style={styles.loginRow}>
               <Text style={styles.loginText}>Already have an account?</Text>
-              <TouchableOpacity onPress={() => router.push("/login")}>
+              <TouchableOpacity onPress={() => router.push("/")}>
                 <Text style={styles.loginLink}>Login Now</Text>
               </TouchableOpacity>
             </View>
