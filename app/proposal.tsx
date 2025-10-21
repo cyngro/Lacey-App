@@ -16,6 +16,8 @@ import {
 } from "react-native";
 import Header from "../components/Header";
 import { API_URL } from "../constants/api";
+import { useAuth } from "../contexts/AuthContext";
+import { getToken } from "../utils/authStorage";
 
 const { height } = Dimensions.get("window");
 
@@ -39,6 +41,7 @@ interface ProposalData {
 
 export default function ProposalScreen() {
   const router = useRouter();
+  const { selectedCompany } = useAuth();
   const [formData, setFormData] = useState<ProposalData>({
     customerName: "",
     address: "",
@@ -88,19 +91,57 @@ export default function ProposalScreen() {
     
     setLoading(true);
     try {
+      // Get the authentication token
+      const token = await getToken();
+      console.log("Proposal submission - Token retrieved:", token ? "Token exists" : "No token");
+      
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      // Add authorization header if token exists
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+        console.log("Proposal submission - Authorization header added",token);
+      } else {
+        console.log("Proposal submission - No token found, sending request without authorization");
+      }
+
+      const proposalData = {
+        ...formData,
+        company: selectedCompany
+      };
+      
       const response = await fetch(`${API_URL}/api/proposals`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        headers,
+        body: JSON.stringify(proposalData),
       });
       
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json(); 
+      } catch (parseError) {
+        data = { message: "Invalid response from server" };
+      }
+      
       if (response.ok) {
         Alert.alert("Success", "Proposal created successfully!", [
           { text: "OK", onPress: () => router.push("/dashboard") }
         ]);
       } else {
-        Alert.alert("Error", data.message || "Failed to create proposal");
+        // Handle specific error cases
+        if (response.status === 401) { 
+          Alert.alert("Authentication Error", "Your session has expired. Please login again.", [
+            { text: "OK", onPress: () => router.push("/") }
+          ]);
+        } else if (response.status === 400) {
+          console.log("Proposal submission - 400 Bad Request error:", data);
+          Alert.alert("Validation Error", data.message || data.error || "Please check your input and try again");
+        } else {
+          console.log("Proposal submission - Other error:", data);
+          Alert.alert("Error", data.message || data.error || "Failed to create proposal");
+        }
       }
     } catch (error) {
       Alert.alert("Network Error", "Unable to create proposal. Please try again.");
