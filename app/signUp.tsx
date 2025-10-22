@@ -17,11 +17,14 @@ import {
   View
 } from "react-native";
 import { API_URL } from "../constants/api";
+import { useAuth } from "../contexts/AuthContext";
+import { saveToken } from "../utils/authStorage";
 
 const { height } = Dimensions.get("window");
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -92,9 +95,31 @@ export default function SignUpScreen() {
         Alert.alert("Sign up failed", data?.msg || data?.message || "Please check your details and try again.");
         return;
       }
-      Alert.alert("Success", data?.msg || "Account created successfully!", [
-        { text: "OK", onPress: () => router.push("/login") }
-      ]);
+      
+      // Auto-login after successful signup
+      if (data.token) {
+        console.log("Signup - Token received:", data.token ? "Token exists" : "No token");
+        await saveToken(data.token);
+        console.log("Signup - Token saved to storage");
+        await login(data.token);
+        console.log("Signup - User logged in via context");
+        
+        // Wait a bit for the auth context to update
+        setTimeout(() => {
+          Alert.alert("Success", data?.msg || "Account created successfully!", [
+            { text: "OK", onPress: () => {
+              console.log("Signup - Redirecting to company selection");
+              // Force navigation to company page
+              router.replace("/company");
+            }}
+          ]);
+        }, 500);
+      } else {
+        console.log("Signup - No token received, redirecting to login");
+        Alert.alert("Success", data?.msg || "Account created successfully!", [
+          { text: "OK", onPress: () => router.push("/") }
+        ]);
+      }
     } catch (e) {
       Alert.alert("Network error", "Unable to connect to server. Please check your internet connection and try again.");
     } finally {
@@ -120,13 +145,13 @@ export default function SignUpScreen() {
             <View style={styles.logoContainer}>
               <Image source={require("../assets/images/signuplogo.png")} style={styles.logo} resizeMode="contain" />
             </View>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               accessibilityRole="button"
-              onPress={() => router.push("/login")}
+              onPress={() => router.push("/")}
               style={styles.backButton}
             >
               <MaterialIcons name="arrow-back" size={22} color="#00234C" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <Text style={styles.title}>Create Account</Text>
 
             {/* Full Name */}
@@ -226,13 +251,20 @@ export default function SignUpScreen() {
               onPress={handleSignUp}
               disabled={loading || !fullName || !email || !phone || !password || !confirmPassword}
             >
-              {loading ? <ActivityIndicator color="#00234C" /> : <Text style={styles.signupButtonText}>Sign up</Text>}
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#00234C" size="small" />
+                  <Text style={styles.loadingText}>Creating account...</Text>
+                </View>
+              ) : (
+                <Text style={styles.signupButtonText}>Sign up</Text>
+              )}
             </TouchableOpacity>
 
             {/* Login Link */}
             <View style={styles.loginRow}>
               <Text style={styles.loginText}>Already have an account?</Text>
-              <TouchableOpacity onPress={() => router.push("/login")}>
+              <TouchableOpacity onPress={() => router.push("/")}>
                 <Text style={styles.loginLink}>Login Now</Text>
               </TouchableOpacity>
             </View>
@@ -281,6 +313,17 @@ const styles = StyleSheet.create({
   },
   signupButtonDisabled: { opacity: 0.7 },
   signupButtonText: { color: "#00234C", fontSize: 18, fontWeight: "600" },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: "#00234C",
+    fontSize: 16,
+    fontWeight: "500",
+    marginLeft: 8,
+  },
   loginRow: { flexDirection: "row", justifyContent: "center", marginTop: height * 0.04 },
   loginText: { color: "#00234C", fontSize: 14, marginRight: 6 },
   loginLink: { color: "#00234C", fontSize: 14, fontWeight: "700" },

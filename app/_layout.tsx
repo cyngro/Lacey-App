@@ -7,6 +7,19 @@ function AppContent() {
   const { isAuthenticated, isLoading, selectedCompany } = useAuth();
 
   console.log("Layout: isAuthenticated:", isAuthenticated, "selectedCompany:", selectedCompany, "isLoading:", isLoading);
+  
+  // Debug the routing logic
+  if (!isAuthenticated) {
+    console.log("Layout: User not authenticated, showing login/signup screens");
+  } else if (!selectedCompany) {
+    console.log("Layout: User authenticated but no company selected, showing company selection");
+  } else {
+    console.log("Layout: User authenticated and company selected, showing dashboard");
+  }
+  
+  // Force re-render when authentication state changes
+  console.log("Layout: Rendering with isAuthenticated:", isAuthenticated, "selectedCompany:", selectedCompany);
+  console.log("Layout: Stack key:", `${isAuthenticated}-${selectedCompany}`);
 
   if (isLoading) {
     return (
@@ -17,7 +30,7 @@ function AppContent() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false }} key={`${isAuthenticated}-${selectedCompany}`}>
       {!isAuthenticated ? (
         <>
           <Stack.Screen name="index" />

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
 
   const handleLogout = () => {
+    console.log("Profile: Logout button pressed");
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -29,7 +31,14 @@ export default function ProfileScreen() {
           text: 'Logout', 
           style: 'destructive',
           onPress: async () => {
+            console.log("Profile: User confirmed logout");
             await logout();
+            console.log("Profile: Logout completed");
+            // Force navigation to login screen
+            setTimeout(() => {
+              console.log("Profile: Forcing navigation to login screen");
+              router.replace('/');
+            }, 200);
           }
         }
       ]
@@ -84,7 +93,10 @@ export default function ProfileScreen() {
 
         {/* Profile Options */}
         <View style={styles.optionsContainer}>
-          <TouchableOpacity style={styles.optionItem}>
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={() => router.push('/editProfile')}
+          >
             <View style={styles.optionLeft}>
               <MaterialIcons name="person" size={24} color="#00234C" />
               <Text style={styles.optionTitle}>Edit Profile</Text>
