@@ -1,10 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -15,10 +14,9 @@ import {
   View
 } from "react-native";
 import Header from "../components/Header";
-import PDFDownloadButton from "../components/PDFDownloadButton";
 import { API_URL } from "../constants/api";
+import { getToken } from "../utils/authStorage";
 
-const { width } = Dimensions.get("window");
 
 interface Proposal {
   _id: string;
@@ -39,6 +37,7 @@ interface Proposal {
   companyEmail: string;
   createdAt: string;
   updatedAt: string;
+  createdBy?: string | { id: string; name: string; email: string }; // User ID or User object
 }
 
 export default function ProposalDetailScreen() {
@@ -54,17 +53,41 @@ export default function ProposalDetailScreen() {
   const [activeTab, setActiveTab] = useState<'persqf' | 'without'>('persqf');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<View>(null);
+  const [checkboxStates, setCheckboxStates] = useState<boolean[]>([false, false, false, false]);
+  
+  const checkboxLines = useMemo(() => [
+    "Contractor will provide all necessary equipment, labor and materials",
+    "Prices are valid for 30 days",
+    "No money due until customer is satisfied with all completed work",
+    "Contractor will not initiate any change orders"
+  ], []);
 
-  useEffect(() => {
-    if (proposalId) {
-      fetchProposal();
-    }
-  }, [proposalId]);
+  const handleCheckboxChange = (index: number, checked: boolean) => {
+    const newCheckboxStates = [...checkboxStates];
+    newCheckboxStates[index] = checked;
+    setCheckboxStates(newCheckboxStates);
+    
+    // Update notes with selected lines
+    const selectedLines = checkboxLines.filter((_, i) => newCheckboxStates[i]);
+    const notesText = selectedLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+    updateField("notes", notesText);
+  };
 
-  async function fetchProposal() {
+  const fetchProposal = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/api/proposals/${proposalId}`);
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_URL}/api/proposals/${proposalId}`, { headers });
       const data = await response.json();
       
       if (response.ok) {
@@ -76,13 +99,45 @@ export default function ProposalDetailScreen() {
         Alert.alert("Error", "Failed to load proposal");
         router.back();
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Network Error", "Unable to load proposal");
       router.back();
     } finally {
       setLoading(false);
     }
-  }
+  }, [proposalId, router]);
+
+  const initializeCheckboxes = useCallback((notes: string) => {
+    if (!notes) {
+      setCheckboxStates([false, false, false, false]);
+      return;
+    }
+    
+    // Reset all checkboxes first
+    const newCheckboxStates = [false, false, false, false];
+    
+    // Check each line to see if it appears in the notes
+    checkboxLines.forEach((line, index) => {
+      if (notes.includes(line)) {
+        newCheckboxStates[index] = true;
+      }
+    });
+    
+    setCheckboxStates(newCheckboxStates);
+  }, [checkboxLines]);
+
+  useEffect(() => {
+    if (proposalId) {
+      fetchProposal();
+    }
+  }, [proposalId, fetchProposal]);
+
+  // Initialize checkboxes when formData.notes changes
+  useEffect(() => {
+    if (formData.notes) {
+      initializeCheckboxes(formData.notes);
+    }
+  }, [formData.notes, initializeCheckboxes]);
 
   function validateForm() {
     const nextErrors: Record<string, string> = {};
@@ -140,9 +195,19 @@ export default function ProposalDetailScreen() {
     
     setSaving(true);
     try {
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_URL}/api/proposals/${proposalId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
       });
       
@@ -156,7 +221,7 @@ export default function ProposalDetailScreen() {
       } else {
         Alert.alert("Error", data.message || "Failed to update proposal");
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Network Error", "Unable to update proposal");
     } finally {
       setSaving(false);
@@ -174,8 +239,19 @@ export default function ProposalDetailScreen() {
           style: "destructive",
           onPress: async () => {
             try {
+              // Get authentication token
+              const token = await getToken();
+              const headers: Record<string, string> = { 
+                "Content-Type": "application/json"
+              };
+              
+              if (token) {
+                headers["Authorization"] = `Bearer ${token}`;
+              }
+              
               const response = await fetch(`${API_URL}/api/proposals/${proposalId}`, {
                 method: "DELETE",
+                headers,
               });
               
               if (response.ok) {
@@ -185,7 +261,7 @@ export default function ProposalDetailScreen() {
               } else {
                 Alert.alert("Error", "Failed to delete proposal");
               }
-            } catch (error) {
+            } catch {
               Alert.alert("Error", "Unable to delete proposal");
             }
           }
@@ -228,8 +304,8 @@ export default function ProposalDetailScreen() {
         "Proposal has been generated and is ready to share!",
         [{ text: "OK" }]
       );
-    } catch (error) {
-      console.error('Proposal generation error:', error);
+    } catch {
+      console.error('Proposal generation error');
       Alert.alert(
         "Error",
         "Failed to generate proposal. Please try again."
@@ -249,8 +325,8 @@ export default function ProposalDetailScreen() {
         "Invoice has been generated and is ready to share!",
         [{ text: "OK" }]
       );
-    } catch (error) {
-      console.error('Invoice generation error:', error);
+    } catch {
+      console.error('Invoice generation error');
       Alert.alert(
         "Error",
         "Failed to generate invoice. Please try again."
@@ -258,9 +334,6 @@ export default function ProposalDetailScreen() {
     }
   }
 
-  function formatDate(dateString: string) {
-    return new Date(dateString).toLocaleDateString();
-  }
 
   if (loading) {
     return (
@@ -288,9 +361,9 @@ export default function ProposalDetailScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Header 
-          onMenuPress={() => router.back()}
-          logo={require("../assets/images/dashbord.png")}
-          isBackButton={true}
+          title="Proposal Details"
+          showBackButton={true}
+          onBackPress={() => router.back()}
           rightActions={
             <>
               {editing ? (
@@ -472,79 +545,80 @@ export default function ProposalDetailScreen() {
           </View>
         </View>
 
-        {/* Specifications Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Specifications:</Text>
-          <View style={styles.sectionContent}>
-            {editing ? (
-              <>
-                <Text style={styles.label}>Specifications</Text>
-                <TextInput
-                  style={[styles.textArea, errors.specifications && styles.inputError]}
-                  value={formData.specifications || ""}
-                  onChangeText={(value) => updateField("specifications", value)}
-                  placeholder="Enter specifications"
-                  multiline
-                  numberOfLines={4}
-                />
-                {!!errors.specifications && <Text style={styles.errorText}>{errors.specifications}</Text>}
-              </>
-            ) : (
-              <Text style={styles.specText}>{proposal.specifications}</Text>
-            )}
+        {/* Specifications Section - Only show if data exists or editing */}
+        {(editing || (proposal.specifications && proposal.specifications.trim())) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Specifications:</Text>
+            <View style={styles.sectionContent}>
+              {editing ? (
+                <>
+                  <Text style={styles.label}>Specifications</Text>
+                  <TextInput
+                    style={[styles.textArea, errors.specifications && styles.inputError]}
+                    value={formData.specifications || ""}
+                    onChangeText={(value) => updateField("specifications", value)}
+                    placeholder="Enter specifications"
+                    multiline
+                    numberOfLines={4}
+                  />
+                  {!!errors.specifications && <Text style={styles.errorText}>{errors.specifications}</Text>}
+                </>
+              ) : (
+                <Text style={styles.specText}>{proposal.specifications}</Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Process Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Process:</Text>
-          <View style={styles.sectionContent}>
-            {editing ? (
-              <>
-                <Text style={styles.label}>Process</Text>
-                <TextInput
-                  style={[styles.textArea, errors.process && styles.inputError]}
-                  value={formData.process || ""}
-                  onChangeText={(value) => updateField("process", value)}
-                  placeholder="Enter process"
-                  multiline
-                  numberOfLines={3}
-                />
-                {!!errors.process && <Text style={styles.errorText}>{errors.process}</Text>}
-              </>
-            ) : (
-              <Text style={styles.processText}>{proposal.process}</Text>
-            )}
+        {/* Process Section - Only show if data exists or editing */}
+        {(editing || (proposal.process && proposal.process.trim())) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Process:</Text>
+            <View style={styles.sectionContent}>
+              {editing ? (
+                <>
+                  <Text style={styles.label}>Process</Text>
+                  <TextInput
+                    style={[styles.textArea, errors.process && styles.inputError]}
+                    value={formData.process || ""}
+                    onChangeText={(value) => updateField("process", value)}
+                    placeholder="Enter process"
+                    multiline
+                    numberOfLines={3}
+                  />
+                  {!!errors.process && <Text style={styles.errorText}>{errors.process}</Text>}
+                </>
+              ) : (
+                <Text style={styles.processText}>{proposal.process}</Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
-        {/* Scope Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Scope:</Text>
-          <View style={styles.sectionContent}>
-            {editing ? (
-              <>
-                <Text style={styles.label}>Scope</Text>
-                <TextInput
-                  style={[styles.textArea, errors.scope && styles.inputError]}
-                  value={formData.scope || ""}
-                  onChangeText={(value) => updateField("scope", value)}
-                  placeholder="Enter scope"
-                  multiline
-                  numberOfLines={3}
-                />
-                {!!errors.scope && <Text style={styles.errorText}>{errors.scope}</Text>}
-              </>
-            ) : (
-              <View style={styles.scopeList}>
-                <Text style={styles.scopeItem}>• Stone Engraving</Text>
-                <Text style={styles.scopeItem}>• Masonry Services</Text>
-                <Text style={styles.scopeItem}>• Patio Installation</Text>
-                <Text style={styles.scopeItem}>• Wall Construction</Text>
-              </View>
-            )}
+        {/* Scope Section - Only show if data exists or editing */}
+        {(editing || (proposal.scope && proposal.scope.trim())) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Scope:</Text>
+            <View style={styles.sectionContent}>
+              {editing ? (
+                <>
+                  <Text style={styles.label}>Scope</Text>
+                  <TextInput
+                    style={[styles.textArea, errors.scope && styles.inputError]}
+                    value={formData.scope || ""}
+                    onChangeText={(value) => updateField("scope", value)}
+                    placeholder="Enter scope"
+                    multiline
+                    numberOfLines={3}
+                  />
+                  {!!errors.scope && <Text style={styles.errorText}>{errors.scope}</Text>}
+                </>
+              ) : (
+                <Text style={styles.specText}>{proposal.scope}</Text>
+              )}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Pricing Information */}
         {editing && (
@@ -645,20 +719,26 @@ export default function ProposalDetailScreen() {
         )}
 
         {/* Pricing Information - View Mode */}
-        {!editing && (proposal.persqf || proposal.sqftTotal || proposal.quantity || proposal.totalCost) && (
+        {!editing && ((proposal.persqf && proposal.persqf.trim()) || (proposal.sqftTotal && proposal.sqftTotal.trim()) || (proposal.quantity && proposal.quantity.trim()) || (proposal.totalCost && proposal.totalCost.trim())) && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pricing Information:</Text>
             <View style={styles.sectionContent}>
-              {proposal.persqf && proposal.sqftTotal ? (
+              {(proposal.persqf && proposal.persqf.trim() && proposal.sqftTotal && proposal.sqftTotal.trim()) ? (
                 <>
                   <Text style={styles.pricingText}>Per Sq ft Cost: ${proposal.persqf}</Text>
                   <Text style={styles.pricingText}>Sq ft Total: {proposal.sqftTotal}</Text>
-                  <Text style={styles.pricingText}>Total Cost: ${proposal.totalCost}</Text>
+                  {proposal.totalCost && proposal.totalCost.trim() && (
+                    <Text style={styles.pricingText}>Total Cost: ${proposal.totalCost}</Text>
+                  )}
                 </>
               ) : (
                 <>
-                  <Text style={styles.pricingText}>Quantity: {proposal.quantity}</Text>
-                  <Text style={styles.pricingText}>Total Cost: ${proposal.totalCost}</Text>
+                  {proposal.quantity && proposal.quantity.trim() && (
+                    <Text style={styles.pricingText}>Quantity: {proposal.quantity}</Text>
+                  )}
+                  {proposal.totalCost && proposal.totalCost.trim() && (
+                    <Text style={styles.pricingText}>Total Cost: ${proposal.totalCost}</Text>
+                  )}
                 </>
               )}
             </View>
@@ -668,25 +748,60 @@ export default function ProposalDetailScreen() {
         {/* Notes Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notes:</Text>
-          <View style={styles.sectionContent}>
-            <View style={styles.notesList}>
-              <Text style={styles.noteItem}>1. Contractor will provide all necessary equipment's labor and material</Text>
-              <Text style={styles.noteItem}>2. No Money due until customer is satisfied with all Completed work</Text>
-              <Text style={styles.noteItem}>3. Contractor will not initiate any change orders</Text>
-              <Text style={styles.noteItem}>4. Prices are Valid for 30 days</Text>
+          
+          {editing ? (
+            <>
+              {checkboxLines.map((line, index) => (
+                <View key={index} style={styles.checkboxRow}>
+                  <TouchableOpacity
+                    style={styles.checkbox}
+                    onPress={() => handleCheckboxChange(index, !checkboxStates[index])}
+                  >
+                    <MaterialIcons 
+                      name={checkboxStates[index] ? "check-box" : "check-box-outline-blank"} 
+                      size={24} 
+                      color="#00234C" 
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.checkboxText}>{line}</Text>
+                </View>
+              ))}
+              
+              {/* Selected Notes Display */}
+              {formData.notes && (
+                <View style={styles.selectedNotesContainer}>
+                  <Text style={styles.selectedNotesLabel}>
+                    Selected Notes ({checkboxStates.filter(Boolean).length} selected):
+                  </Text>
+                  <View style={styles.selectedNotesBox}>
+                    <Text style={styles.selectedNotesText}>{formData.notes}</Text>
+                  </View>
+                </View>
+              )}
+            </>
+          ) : (
+            <View style={styles.sectionContent}>
+              {formData.notes ? (
+                <View style={styles.notesList}>
+                  <Text style={styles.noteItem}>{formData.notes}</Text>
+                </View>
+              ) : (
+                <Text style={styles.noDataText}>No notes added to this proposal</Text>
+              )}
             </View>
-          </View>
+          )}
         </View>
 
-        {/* Submitted By Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Submitted By:</Text>
-          <View style={styles.sectionContent}>
-            <Text style={styles.submittedText}>Andrew Lacey</Text>
-            <Text style={styles.submittedText}>terryasphalt@gmail.com</Text>
-            <Text style={styles.submittedText}>443-271-3811</Text>
+        {/* Submitted By Section - Only show if user data exists */}
+        {proposal?.createdBy && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Submitted By:</Text>
+            <View style={styles.sectionContent}>
+              <Text style={styles.submittedText}>User ID: {typeof proposal.createdBy === 'string' ? proposal.createdBy : proposal.createdBy.id}</Text>
+              <Text style={styles.submittedText}>Created: {new Date(proposal.createdAt).toLocaleDateString()}</Text>
+            </View>
           </View>
-        </View>
+        )}
 
         {editing && (
           <View style={styles.buttonContainer}>
@@ -874,6 +989,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     marginBottom: 8,
+  },
+  noDataText: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+  },
+  
+  // Checkbox styles
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  checkbox: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
+  },
+  
+  // Selected Notes Display
+  selectedNotesContainer: {
+    marginTop: 16,
+  },
+  selectedNotesLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#00234C",
+    marginBottom: 8,
+  },
+  selectedNotesBox: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectedNotesText: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
   },
   
   // Submitted By Section

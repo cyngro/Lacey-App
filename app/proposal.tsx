@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -14,14 +13,13 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import Header from "../components/Header";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
 import { getToken } from "../utils/authStorage";
 
-const { height } = Dimensions.get("window");
 
-type NavigationLike = { navigate: (route: string) => void; goBack?: () => void } | undefined;
 
 interface ProposalData {
   customerName: string;
@@ -60,6 +58,25 @@ export default function ProposalScreen() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'persqf' | 'without'>('persqf');
+  const [checkboxStates, setCheckboxStates] = useState<boolean[]>([false, false, false, false]);
+  
+  const checkboxLines = [
+    "Contractor will provide all necessary equipment, labor and materials",
+    "Prices are valid for 30 days",
+    "No money due until customer is satisfied with all completed work",
+    "Contractor will not initiate any change orders"
+  ];
+
+  const handleCheckboxChange = (index: number, checked: boolean) => {
+    const newCheckboxStates = [...checkboxStates];
+    newCheckboxStates[index] = checked;
+    setCheckboxStates(newCheckboxStates);
+    
+    // Update notes with selected lines
+    const selectedLines = checkboxLines.filter((_, i) => newCheckboxStates[i]);
+    const notesText = selectedLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+    updateField("notes", notesText);
+  };
 
   function validateForm() {
     const nextErrors: Record<string, string> = {};
@@ -121,7 +138,7 @@ export default function ProposalScreen() {
       let data;
       try {
         data = await response.json(); 
-      } catch (parseError) {
+      } catch {
         data = { message: "Invalid response from server" };
       }
       
@@ -143,7 +160,7 @@ export default function ProposalScreen() {
           Alert.alert("Error", data.message || data.error || "Failed to create proposal");
         }
       }
-    } catch (error) {
+    } catch {
       Alert.alert("Network Error", "Unable to create proposal. Please try again.");
     } finally {
       setLoading(false);
@@ -195,11 +212,10 @@ export default function ProposalScreen() {
         >
           {/* Header */}
           <Header 
-            onMenuPress={() => router.back()}
             title="Create Proposal"
-            showMenu={true}
-            showLogout={false}
-            isBackButton={true}
+            showBackButton={true}
+            onBackPress={() => router.back()}
+            rightLogo={true}
           />
 
         {/* Logo */}
@@ -404,18 +420,35 @@ export default function ProposalScreen() {
 
         {/* Additional Information */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Information</Text>
+          <Text style={styles.sectionTitle}>Notes:</Text>
           
-          <Text style={styles.label}>Notes</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder="Enter any additional notes..."
-            placeholderTextColor="#999"
-            multiline
-            numberOfLines={3}
-            value={formData.notes}
-            onChangeText={(value) => updateField("notes", value)}
-          />
+          {checkboxLines.map((line, index) => (
+            <View key={index} style={styles.checkboxRow}>
+              <TouchableOpacity
+                style={styles.checkbox}
+                onPress={() => handleCheckboxChange(index, !checkboxStates[index])}
+              >
+                <MaterialIcons 
+                  name={checkboxStates[index] ? "check-box" : "check-box-outline-blank"} 
+                  size={24} 
+                  color="#00234C" 
+                />
+              </TouchableOpacity>
+              <Text style={styles.checkboxText}>{line}</Text>
+            </View>
+          ))}
+          
+          {/* Selected Notes Display */}
+          {formData.notes && (
+            <View style={styles.selectedNotesContainer}>
+              <Text style={styles.selectedNotesLabel}>
+                Selected Notes ({checkboxStates.filter(Boolean).length} selected):
+              </Text>
+              <View style={styles.selectedNotesBox}>
+                <Text style={styles.selectedNotesText}>{formData.notes}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
 
@@ -543,6 +576,46 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: { opacity: 0.7 },
   submitButtonText: { color: "#fff", fontSize: 18, fontWeight: "600" },
+  
+  // Checkbox styles
+  checkboxRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  checkbox: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  checkboxText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
+  },
+  
+  // Selected Notes Display
+  selectedNotesContainer: {
+    marginTop: 16,
+  },
+  selectedNotesLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#00234C",
+    marginBottom: 8,
+  },
+  selectedNotesBox: {
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    borderRadius: 8,
+    padding: 12,
+  },
+  selectedNotesText: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
+  },
   
   bottomSpacing: { height: 40 },
 });

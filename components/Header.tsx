@@ -1,72 +1,58 @@
-import { MaterialIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Alert,
     Image,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from "../contexts/AuthContext";
+import { getCompanyInfo } from "../utils/companyLogos";
 
 interface HeaderProps {
-  onMenuPress?: () => void;
-  showMenu?: boolean;
-  showLogout?: boolean;
   title?: string;
   logo?: any;
-  isBackButton?: boolean;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
   rightActions?: React.ReactNode;
+  centerLogo?: boolean;
+  rightLogo?: boolean;
 }
 
 export default function Header({ 
-  onMenuPress, 
-  showMenu = true, 
-  showLogout = true, 
   title,
   logo,
-  isBackButton = false,
-  rightActions
+  showBackButton = false,
+  onBackPress,
+  rightActions,
+  centerLogo = false,
+  rightLogo = false
 }: HeaderProps) {
-  const router = useRouter();
-  const { logout } = useAuth();
-
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
-          style: "destructive",
-          onPress: async () => {
-            await logout();
-            router.push("/login");
-          }
-        }
-      ]
-    );
-  };
+  const { selectedCompany } = useAuth();
+  const companyInfo = getCompanyInfo(selectedCompany);
 
   return (
-    <View style={styles.header}>
-      {showMenu ? (
-        <TouchableOpacity style={styles.menuButton} onPress={onMenuPress}>
-          <MaterialIcons 
-            name={isBackButton ? "arrow-back" : "menu"} 
-            size={24} 
-            color="#00234C" 
-          />
+    <View style={[styles.header, centerLogo && styles.headerCenter, rightLogo && styles.headerRight]}>
+      {showBackButton && (
+        <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
+          <MaterialIcons name="arrow-back" size={24} color="#00234C" />
         </TouchableOpacity>
-      ) : (
-        <View style={styles.menuButton} />
       )}
-      
-      <View style={styles.logoContainer}>
-        {logo ? (
+      <View style={[styles.logoContainer, centerLogo && styles.logoContainerCenter, rightLogo && styles.logoContainerRight]}>
+        {companyInfo ? (
+          <View style={styles.companyInfo}>
+            <Image 
+              source={{ uri: companyInfo.logo }} 
+              style={styles.companyLogo} 
+              resizeMode="contain" 
+            />
+            <View style={styles.companyText}>
+              <Text style={styles.companyName}>{companyInfo.name}</Text>
+              <Text style={styles.companySubtitle}>{companyInfo.subtitle}</Text>
+            </View>
+          </View>
+        ) : logo ? (
           <Image source={logo} style={styles.logo} resizeMode="contain" />
         ) : title ? (
           <Text style={styles.title}>{title}</Text>
@@ -78,17 +64,10 @@ export default function Header({
           />
         )}
       </View>
-      
-      {rightActions ? (
+      {rightActions && (
         <View style={styles.rightActions}>
           {rightActions}
         </View>
-      ) : showLogout ? (
-        <TouchableOpacity style={styles.menuButton} onPress={handleLogout}>
-          <MaterialIcons name="logout" size={24} color="#00234C" />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.menuButton} />
       )}
     </View>
   );
@@ -97,36 +76,68 @@ export default function Header({
 const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 60,
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginLeft: 10,
     marginBottom: 20,
   },
-  menuButton: {
-    padding: 8,
-    width: 40,
-    height: 40,
+  headerCenter: {
     justifyContent: "center",
+  },
+  headerRight: {
+    justifyContent: "flex-start",
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  rightActions: {
+    flexDirection: "row",
     alignItems: "center",
   },
   logoContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  logoContainerCenter: {
     flex: 1,
     justifyContent: "center",
   },
+  logoContainerRight: {
+    flex: 1,
+    justifyContent: "flex-start",
+  },
   logo: {
-    width: 200,
+    width: 150,
     height: 50,
-    marginRight: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
     color: "#00234C",
   },
-  rightActions: {
+  companyInfo: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+  },
+  companyLogo: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
+  companyText: {
+    flexDirection: "column",
+  },
+  companyName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#00234C",
+    marginBottom: 2,
+  },
+  companySubtitle: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "500",
   },
 });

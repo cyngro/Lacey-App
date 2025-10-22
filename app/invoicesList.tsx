@@ -17,6 +17,7 @@ import Header from "../components/Header";
 import InvoiceDownloadButton from "../components/InvoiceDownloadButton";
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
+import { getToken } from "../utils/authStorage";
 
 const { width } = Dimensions.get("window");
 
@@ -64,7 +65,18 @@ export default function InvoicesListScreen() {
     try {
       setLoading(true);
       const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
-      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=50${companyParam}`);
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_URL}/api/proposals?page=1&limit=50${companyParam}`, { headers });
       const data: ProposalsResponse = await response.json();
       
       if (response.ok) {
@@ -162,24 +174,9 @@ export default function InvoicesListScreen() {
       <View style={styles.container}>
         {/* Header */}
         <Header 
-          onMenuPress={async () => {
-            Alert.alert(
-              "Logout",
-              "Are you sure you want to logout?",
-              [
-                { text: "Cancel", style: "cancel" },
-                { 
-                  text: "Logout", 
-                  style: "destructive",
-                  onPress: async () => {
-                    await logout();
-                  }
-                }
-              ]
-            );
-          }}
-          logo={require("../assets/images/dashbord.png")}
-          isBackButton={true}
+          title="Invoices"
+          showBackButton={true}
+          onBackPress={() => router.back()}
           rightActions={
             <TouchableOpacity
               style={styles.createButton}
