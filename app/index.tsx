@@ -209,7 +209,10 @@ export default function LoginScreen() {
             disabled={loading || !identifier || !password}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#002147" size="small" />
+                <Text style={styles.loadingText}>Signing in...</Text>
+              </View>
             ) : (
               <Text style={styles.loginButtonText}>Login Now</Text>
             )}
@@ -347,6 +350,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     paddingBottom: 0,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    color: "#002147",
+    fontSize: 16,
+    fontWeight: "500",
+    marginLeft: 8,
   },
   signUpContainer: {
     flexDirection: "row",

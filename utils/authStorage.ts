@@ -49,18 +49,25 @@ export async function getToken(): Promise<string | null> {
 }
 
 export async function clearToken(): Promise<void> {
+  console.log("AuthStorage: Starting token clear process");
+  console.log("AuthStorage: Secure store available:", secureStore ? "yes" : "no");
+  console.log("AuthStorage: Current memory token:", memoryToken ? "exists" : "null");
+  
   if (secureStore && typeof secureStore.deleteItemAsync === "function") {
     try {
       await secureStore.deleteItemAsync(TOKEN_KEY);
-      console.log("Token cleared from secure store");
+      console.log("AuthStorage: Token cleared from secure store");
     } catch (_e) {
-      console.log("Secure store failed, clearing from memory");
+      console.log("AuthStorage: Secure store failed, clearing from memory");
       memoryToken = null;
     }
   } else {
-    console.log("Secure store not available, clearing from memory");
+    console.log("AuthStorage: Secure store not available, clearing from memory");
     memoryToken = null;
   }
+  
+  console.log("AuthStorage: Token clear process completed");
+  console.log("AuthStorage: Final memory token:", memoryToken ? "exists" : "null");
 }
 
 
