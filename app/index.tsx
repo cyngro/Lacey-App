@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRouter } from 'expo-router';
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -20,23 +20,23 @@ import {
 import { API_URL } from "../constants/api";
 import { useAuth } from "../contexts/AuthContext";
 import { saveToken } from "../utils/authStorage";
+import { FaceIdService } from "../utils/faceIdService";
 
 const { height } = Dimensions.get("window");
 
-type NavigationLike = { navigate: (route: string) => void } | undefined;
 
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, faceIdEnabled, faceIdAvailable, authenticateWithFaceId, setupFaceIdCredentials, hasFaceIdCredentials } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ identifier?: string; password?: string; general?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [faceIdLoading, setFaceIdLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const isEmail = useMemo(() => /.+@.+\..+/.test(identifier.trim()), [identifier]);
 
   function scrollToEnd() {
     setTimeout(() => {
@@ -73,32 +73,128 @@ export default function LoginScreen() {
     const ok = validateForm();
     if (!ok) return;
     setLoading(true);
+    
+    console.log("🔍 Login Debug Info:");
+    console.log("📧 Email:", identifier.trim());
+    console.log("🔑 Password length:", password.length);
+    console.log("🌐 API URL:", API_URL);
+    console.log("📡 Full URL:", `${API_URL}/api/auth/signin`);
+    
     try {
       const response = await fetch(`${API_URL}/api/auth/signin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: identifier.trim(), password }),
       });  
-      const data = await response.json().catch(() => ({}));
+      
+      console.log("📊 Response Status:", response.status);
+      console.log("✅ Response OK:", response.ok);
+      console.log("📋 Response Headers:", response.headers);
+      
+      const data = await response.json().catch((parseError) => {
+        console.error("❌ JSON Parse Error:", parseError);
+        return { error: "Invalid JSON response" };
+      });
+      
+      console.log("📦 Response Data:", data);
+      
       if (!response.ok) {
-        const message = data?.message || "Invalid credentials";
+        const message = data?.message || data?.error || "Invalid credentials";
+        console.log("❌ Login failed:", message);
         setErrors((e) => ({ ...e, general: message }));
         return;
       }
       if (data?.token) { 
-        console.log("Login successful - Token received:", data.token ? "Token exists" : "No token");
+        console.log("✅ Login successful - Token received");
         await saveToken(String(data.token)); 
-        console.log("Login successful - Token saved to storage");
+        console.log("💾 Token saved to storage");
         await login(String(data.token)); 
-        console.log("Login successful - Auth context updated");
+        console.log("🔐 Auth context updated");
         router.push("/company"); 
+      } else {
+        console.log("❌ No token in response");
+        setErrors((e) => ({ ...e, general: "No authentication token received" }));
       }
-    } catch (err) {
-      setErrors((e) => ({ ...e, general: "Network error. Please try again." }));
+    } catch (error) {
+      console.error('💥 Login error:', error);
+      console.error('Error type:', (error as Error).name);
+      console.error('Error message:', (error as Error).message);
+      setErrors((e) => ({ ...e, general: `Network error: ${(error as Error).message}` }));
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleFaceIdLogin() {
+    if (faceIdLoading) return;
+    
+    setFaceIdLoading(true);
+    setErrors({});
+    
+    try {
+      // Check if Face ID credentials are already set up
+      const hasCredentials = await hasFaceIdCredentials();
+      
+      if (!hasCredentials) {
+        // No credentials set up, ask user to enter them
+        if (!identifier.trim() || !password) {
+          setErrors((e) => ({ 
+            ...e, 
+            general: "Please enter your email and password to setup Face ID" 
+          }));
+          setFaceIdLoading(false);
+          return;
+        }
+        
+        // Setup Face ID credentials
+        const setupSuccess = await setupFaceIdCredentials(identifier, password);
+        
+        if (!setupSuccess) {
+          setErrors((e) => ({ 
+            ...e, 
+            general: "Invalid credentials. Please check your email and password." 
+          }));
+          setFaceIdLoading(false);
+          return;
+        }
+        
+        // Credentials saved successfully, now authenticate with Face ID
+        const result = await authenticateWithFaceId();
+        
+        if (result.success) {
+          console.log("Face ID setup and authentication successful, navigating to company");
+          router.push("/company");
+        } else {
+          setErrors((e) => ({ 
+            ...e, 
+            general: FaceIdService.getErrorMessage(result.errorCode) 
+          }));
+        }
+      } else {
+        // Credentials already set up, just authenticate with Face ID
+        const result = await authenticateWithFaceId();
+        
+        if (result.success) {
+          console.log("Face ID authentication successful, navigating to company");
+          router.push("/company");
+        } else {
+          setErrors((e) => ({ 
+            ...e, 
+            general: FaceIdService.getErrorMessage(result.errorCode) 
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Face ID login error:', error);
+      setErrors((e) => ({ 
+        ...e, 
+        general: "Face ID authentication failed. Please try again." 
+      }));
+    } finally {
+      setFaceIdLoading(false);
+    }
+  }
+
 
   return (
     <ImageBackground
@@ -150,7 +246,7 @@ export default function LoginScreen() {
             />
             <TextInput
               style={styles.input}
-              placeholder="Example@email.com"
+              placeholder="example@email.com"
               keyboardType="email-address"
               autoCapitalize="none"
               placeholderTextColor="#ddd"
@@ -202,6 +298,37 @@ export default function LoginScreen() {
             <Text style={styles.forgotPassword}>Forgot Password</Text>
           </TouchableOpacity>
 
+
+          {/* Face ID Login Button */}
+          {faceIdEnabled && faceIdAvailable && (
+            <TouchableOpacity
+              style={[styles.faceIdButton, faceIdLoading && styles.faceIdButtonDisabled]}
+              onPress={handleFaceIdLogin}
+              disabled={faceIdLoading}
+            >
+              {faceIdLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator color="#fff" size="small" />
+                  <Text style={styles.faceIdButtonText}>Authenticating...</Text>
+                </View>
+              ) : (
+                <>
+                  <MaterialIcons name="face" size={20} color="#fff" />
+                  <Text style={styles.faceIdButtonText}>Use Face ID</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Divider */}
+          {faceIdEnabled && faceIdAvailable && (
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          )}
+
           {/* Login Button */}
           <TouchableOpacity
             style={[styles.loginButton, (loading || !identifier || !password) && styles.loginButtonDisabled]}
@@ -221,7 +348,7 @@ export default function LoginScreen() {
 
         {/* Sign Up */}
         <View style={styles.signUpContainer}>
-          <Text style={styles.signUpText}>Don't have an account?</Text>
+            <Text style={styles.signUpText}>Don&apos;t have an account?</Text>
           <TouchableOpacity onPress={() => router.push("/signUp")}>
             <Text style={styles.signUpLink}>Sign up</Text>
           </TouchableOpacity>
@@ -361,6 +488,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginLeft: 8,
+  },
+  faceIdButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  faceIdButtonDisabled: {
+    opacity: 0.7,
+  },
+  faceIdButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  dividerText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "500",
+    marginHorizontal: 16,
+    opacity: 0.8,
+  },
+  debugButton: {
+    backgroundColor: "rgba(255, 0, 0, 0.2)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 0, 0, 0.5)",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginVertical: 8,
+    alignSelf: "center",
+  },
+  debugButtonText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "500",
   },
   signUpContainer: {
     flexDirection: "row",
