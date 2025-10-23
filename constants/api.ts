@@ -12,5 +12,4 @@ const ANDROID_LOCALHOST = "http://10.0.2.2:5001"; // Android emulator localhost
 const RAILWAY_URL = "https://lacey-backend-production.up.railway.app"; // Railway production URL
 const DEFAULT_HOST = Platform.OS === "android" ? ANDROID_LOCALHOST : LOCAL_IP;
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || RAILWAY_URL;
-
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || RAILWAY_URL; 
