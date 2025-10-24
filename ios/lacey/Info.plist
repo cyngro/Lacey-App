@@ -77,5 +77,13 @@
     <string>Automatic</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Use Face ID to quickly and securely access your account</string>
+    <key>NSLocalAuthenticationUsageDescription</key>
+    <string>Use biometric authentication (Face ID or Touch ID) to securely access your account</string>
+    <key>NSBiometricUsageDescription</key>
+    <string>Use biometric authentication to securely access your account</string>
+    <key>NSBiometricAuthenticationUsageDescription</key>
+    <string>Use Face ID or Touch ID to securely authenticate and access your account</string>
   </dict>
 </plist>
