@@ -184,7 +184,10 @@ export default function ProfileScreen() {
             <MaterialIcons name="chevron-right" size={24} color="#666" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.optionItem}>
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={() => router.push('/changePassword')}
+          >
             <View style={styles.optionLeft}>
               <MaterialIcons name="lock" size={24} color="#00234C" />
               <Text style={styles.optionTitle}>Change Password</Text>
@@ -192,7 +195,10 @@ export default function ProfileScreen() {
             <MaterialIcons name="chevron-right" size={24} color="#666" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.optionItem}>
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={() => router.push('/termsConditions')}
+          >
             <View style={styles.optionLeft}>
               <MaterialIcons name="description" size={24} color="#00234C" />
               <Text style={styles.optionTitle}>Terms & Conditions</Text>
@@ -200,9 +206,12 @@ export default function ProfileScreen() {
             <MaterialIcons name="chevron-right" size={24} color="#666" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.optionItem}>
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={() => router.push('/privacyPolicy')}
+          >
             <View style={styles.optionLeft}>
-              <MaterialIcons name="description" size={24} color="#00234C" />
+              <MaterialIcons name="privacy-tip" size={24} color="#00234C" />
               <Text style={styles.optionTitle}>Privacy Policy</Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color="#666" />

@@ -294,9 +294,7 @@ export default function LoginScreen() {
                   </View>
                 )}
 
-                <TouchableOpacity onPress={() => Alert.alert("Forgot Password", "Feature coming soon!")}>
-                  <Text style={styles.forgotPassword}>Forgot Password</Text>
-                </TouchableOpacity>
+            
 
 
 
@@ -344,6 +342,14 @@ export default function LoginScreen() {
                     )}
                   </TouchableOpacity>
                 )}
+
+                {/* Forgot Password Link */}
+                <TouchableOpacity 
+                  style={styles.forgotPasswordContainer}
+                  onPress={() => router.push("/forgotPassword")}
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
 
               </View>
 
@@ -542,6 +548,17 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 12,
     fontWeight: "500",
+  },
+  forgotPasswordContainer: {
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: "#fff",
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   signUpContainer: {
     flexDirection: "row",
