@@ -73,44 +73,44 @@ export default function LoginScreen() {
     const ok = validateForm();
     if (!ok) return;
     setLoading(true);
-    
+
     console.log("🔍 Login Debug Info:");
     console.log("📧 Email:", identifier.trim());
     console.log("🔑 Password length:", password.length);
     console.log("🌐 API URL:", API_URL);
     console.log("📡 Full URL:", `${API_URL}/api/auth/signin`);
-    
+
     try {
       const response = await fetch(`${API_URL}/api/auth/signin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: identifier.trim(), password }),
-      });  
-      
+      });
+
       console.log("📊 Response Status:", response.status);
       console.log("✅ Response OK:", response.ok);
       console.log("📋 Response Headers:", response.headers);
-      
+
       const data = await response.json().catch((parseError) => {
         console.error("❌ JSON Parse Error:", parseError);
         return { error: "Invalid JSON response" };
       });
-      
+
       console.log("📦 Response Data:", data);
-      
+
       if (!response.ok) {
         const message = data?.message || data?.error || "Invalid credentials";
         console.log("❌ Login failed:", message);
         setErrors((e) => ({ ...e, general: message }));
         return;
       }
-      if (data?.token) { 
+      if (data?.token) {
         console.log("✅ Login successful - Token received");
-        await saveToken(String(data.token)); 
+        await saveToken(String(data.token));
         console.log("💾 Token saved to storage");
-        await login(String(data.token)); 
+        await login(String(data.token));
         console.log("🔐 Auth context updated");
-        router.push("/company"); 
+        router.push("/company");
       } else {
         console.log("❌ No token in response");
         setErrors((e) => ({ ...e, general: "No authentication token received" }));
@@ -127,68 +127,68 @@ export default function LoginScreen() {
 
   async function handleFaceIdLogin() {
     if (faceIdLoading) return;
-    
+
     setFaceIdLoading(true);
     setErrors({});
-    
+
     try {
       // Check if Face ID credentials are already set up
       const hasCredentials = await hasFaceIdCredentials();
-      
+
       if (!hasCredentials) {
         // No credentials set up, ask user to enter them
         if (!identifier.trim() || !password) {
-          setErrors((e) => ({ 
-            ...e, 
-            general: "Please enter your email and password to setup Face ID" 
+          setErrors((e) => ({
+            ...e,
+            general: "Please enter your email and password to setup Face ID"
           }));
           setFaceIdLoading(false);
           return;
         }
-        
+
         // Setup Face ID credentials
         const setupSuccess = await setupFaceIdCredentials(identifier, password);
-        
+
         if (!setupSuccess) {
-          setErrors((e) => ({ 
-            ...e, 
-            general: "Invalid credentials. Please check your email and password." 
+          setErrors((e) => ({
+            ...e,
+            general: "Invalid credentials. Please check your email and password."
           }));
           setFaceIdLoading(false);
           return;
         }
-        
+
         // Credentials saved successfully, now authenticate with Face ID
         const result = await authenticateWithFaceId();
-        
+
         if (result.success) {
           console.log("Face ID setup and authentication successful, navigating to company");
           router.push("/company");
         } else {
-          setErrors((e) => ({ 
-            ...e, 
-            general: FaceIdService.getErrorMessage(result.errorCode) 
+          setErrors((e) => ({
+            ...e,
+            general: FaceIdService.getErrorMessage(result.errorCode)
           }));
         }
       } else {
         // Credentials already set up, just authenticate with Face ID
         const result = await authenticateWithFaceId();
-        
+
         if (result.success) {
           console.log("Face ID authentication successful, navigating to company");
           router.push("/company");
         } else {
-          setErrors((e) => ({ 
-            ...e, 
-            general: FaceIdService.getErrorMessage(result.errorCode) 
+          setErrors((e) => ({
+            ...e,
+            general: FaceIdService.getErrorMessage(result.errorCode)
           }));
         }
       }
     } catch (error) {
       console.error('Face ID login error:', error);
-      setErrors((e) => ({ 
-        ...e, 
-        general: "Face ID authentication failed. Please try again." 
+      setErrors((e) => ({
+        ...e,
+        general: "Face ID authentication failed. Please try again."
       }));
     } finally {
       setFaceIdLoading(false);
@@ -203,156 +203,158 @@ export default function LoginScreen() {
       resizeMode="cover"
     >
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          style={styles.keyboardAvoidingView} 
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoidingView}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
         >
-          <ScrollView 
+          <ScrollView
             ref={scrollViewRef}
-            contentContainerStyle={styles.scrollContent} 
+            contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.container}>
-        {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={require("../assets/images/logo.png")}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
-        </View>
-
-        {/* Welcome */}
-        <View style={styles.textContainer}>
-          <Text style={styles.welcomeTitle}>
-          Lacey Business Suite
-          </Text>
-          <Text style={styles.subtitle}>
-            Enter your credentials to continue
-          </Text>
-        </View>
-
-        {/* Form */}
-        <View style={styles.form}>
-          <Text style={styles.inputLabel}>Username/Email</Text>
-          <View style={styles.inputWrapper}>
-            <MaterialIcons
-              name="person-outline"
-              size={20}
-              color="#fff"
-              style={styles.icon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="example@email.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholderTextColor="#ddd"
-              value={identifier}
-              onChangeText={setIdentifier}
-              returnKeyType="next"
-            />
-          </View>
-          {!!errors.identifier && <Text style={styles.errorText}>{errors.identifier}</Text>}
-
-          <Text style={styles.inputLabel}>Password</Text>
-          <View style={styles.inputWrapper}>
-            <MaterialIcons
-              name="lock-outline"
-              size={20}
-              color="#fff"
-              style={styles.icon}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="***********"
-              secureTextEntry={!showPassword} // 👈 Toggle here
-              placeholderTextColor="#ddd"
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              onFocus={() => scrollToEnd()}
-              onSubmitEditing={handleLogin}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <MaterialIcons
-                name={showPassword ? "visibility" : "visibility-off"}
-                size={20}
-                color="#fff"
-                style={styles.visibilityIcon}
-              />
-            </TouchableOpacity>
-          </View>
-          {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-
-          {!!errors.general && (
-            <View style={styles.errorBanner}>
-              <MaterialIcons name="error-outline" size={18} color="#b00020" />
-              <Text style={styles.errorBannerText}>{errors.general}</Text>
-            </View>
-          )}
-
-          <TouchableOpacity onPress={() => Alert.alert("Forgot Password", "Feature coming soon!")}>
-            <Text style={styles.forgotPassword}>Forgot Password</Text>
-          </TouchableOpacity>
-
-          {/* Face ID Login Button */}
-          {faceIdEnabled && faceIdAvailable && (
-            <TouchableOpacity
-              style={[styles.faceIdButton, faceIdLoading && styles.faceIdButtonDisabled]}
-              onPress={handleFaceIdLogin}
-              disabled={faceIdLoading}
-            >
-              {faceIdLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator color="#fff" size="small" />
-                  <Text style={styles.faceIdButtonText}>Authenticating...</Text>
-                </View>
-              ) : (
-                <>
-                  <MaterialIcons name="face" size={20} color="#fff" />
-                  <Text style={styles.faceIdButtonText}>Use Face ID</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-
-          {/* Divider */}
-          {faceIdEnabled && faceIdAvailable && (
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-          )}
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.loginButton, (loading || !identifier || !password) && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={loading || !identifier || !password}
-          >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator color="#002147" size="small" />
-                <Text style={styles.loadingText}>Signing in...</Text>
+              {/* Logo */}
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require("../assets/images/logo.png")}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
-            ) : (
-              <Text style={styles.loginButtonText}>Login Now</Text>
-            )}
-          </TouchableOpacity>
-        </View>
 
-        {/* Sign Up */}
-        <View style={styles.signUpContainer}>
-            <Text style={styles.signUpText}>Don&apos;t have an account?</Text>
-          <TouchableOpacity onPress={() => router.push("/signUp")}>
-            <Text style={styles.signUpLink}>Sign up</Text>
-          </TouchableOpacity>
-        </View>
-        </View>
+              {/* Welcome */}
+              <View style={styles.textContainer}>
+                <Text style={styles.welcomeTitle}>
+                  Lacey Business Suite
+                </Text>
+                <Text style={styles.subtitle}>
+                  Enter your credentials to continue
+                </Text>
+              </View>
+
+              {/* Form */}
+              <View style={styles.form}>
+                <Text style={styles.inputLabel}>Username/Email</Text>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons
+                    name="person-outline"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="example@email.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholderTextColor="#ddd"
+                    value={identifier}
+                    onChangeText={setIdentifier}
+                    returnKeyType="next"
+                  />
+                </View>
+                {!!errors.identifier && <Text style={styles.errorText}>{errors.identifier}</Text>}
+
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={styles.inputWrapper}>
+                  <MaterialIcons
+                    name="lock-outline"
+                    size={20}
+                    color="#fff"
+                    style={styles.icon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="***********"
+                    secureTextEntry={!showPassword} // 👈 Toggle here
+                    placeholderTextColor="#ddd"
+                    value={password}
+                    onChangeText={setPassword}
+                    autoCapitalize="none"
+                    onFocus={() => scrollToEnd()}
+                    onSubmitEditing={handleLogin}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <MaterialIcons
+                      name={showPassword ? "visibility" : "visibility-off"}
+                      size={20}
+                      color="#fff"
+                      style={styles.visibilityIcon}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {!!errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+                {!!errors.general && (
+                  <View style={styles.errorBanner}>
+                    <MaterialIcons name="error-outline" size={18} color="#b00020" />
+                    <Text style={styles.errorBannerText}>{errors.general}</Text>
+                  </View>
+                )}
+
+                <TouchableOpacity onPress={() => Alert.alert("Forgot Password", "Feature coming soon!")}>
+                  <Text style={styles.forgotPassword}>Forgot Password</Text>
+                </TouchableOpacity>
+
+
+
+                {/* Login Button */}
+                <TouchableOpacity
+                  style={[styles.loginButton, (loading || !identifier || !password) && styles.loginButtonDisabled]}
+                  onPress={handleLogin}
+                  disabled={loading || !identifier || !password}
+                >
+                  {loading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color="#002147" size="small" />
+                      <Text style={styles.loadingText}>Signing in...</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.loginButtonText}>Login Now</Text>
+                  )}
+                </TouchableOpacity>
+                {/* Divider */}
+                {faceIdEnabled && faceIdAvailable && (
+                  <View style={styles.dividerContainer}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR</Text>
+                    <View style={styles.dividerLine} />
+                  </View>
+                )}
+
+                {/* Face ID Login Button */}
+                {faceIdEnabled && faceIdAvailable && (
+                  <TouchableOpacity
+                    style={[styles.faceIdButton, faceIdLoading && styles.faceIdButtonDisabled]}
+                    onPress={handleFaceIdLogin}
+                    disabled={faceIdLoading}
+                  >
+                    {faceIdLoading ? (
+                      <View style={styles.loadingContainer}>
+                        <ActivityIndicator color="#fff" size="small" />
+                        <Text style={styles.faceIdButtonText}>Authenticating...</Text>
+                      </View>
+                    ) : (
+                      <>
+                        <MaterialIcons name="face" size={20} color="#fff" />
+                        <Text style={styles.faceIdButtonText}>Use Face ID</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+              </View>
+
+              {/* Sign Up */}
+              <View style={styles.signUpContainer}>
+                <Text style={styles.signUpText}>Don&apos;t have an account?</Text>
+                <TouchableOpacity onPress={() => router.push("/signUp")}>
+                  <Text style={styles.signUpLink}>Sign up</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
