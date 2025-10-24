@@ -298,7 +298,6 @@ export default function LoginScreen() {
             <Text style={styles.forgotPassword}>Forgot Password</Text>
           </TouchableOpacity>
 
-
           {/* Face ID Login Button */}
           {faceIdEnabled && faceIdAvailable && (
             <TouchableOpacity
@@ -545,7 +544,6 @@ const styles = StyleSheet.create({
   signUpContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: height * 0.15,
   },
   signUpText: {
     fontSize: 14,

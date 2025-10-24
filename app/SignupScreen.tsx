@@ -65,7 +65,7 @@ export default function SignupScreen() {
               />
               <TextInput
                 style={styles.input}
-                placeholder="Example @email.com"
+                placeholder="example@email.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 placeholderTextColor={COLORS.TEXT_GRAY}

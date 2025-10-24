@@ -7,18 +7,24 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { router } from 'expo-router';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import { useAuth } from '../contexts/AuthContext';
+import { FaceIdService } from '../utils/faceIdService';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { logout, selectedCompany } = useAuth();
-  const [notifications, setNotifications] = useState(true);
+  const { logout, faceIdEnabled, faceIdAvailable, toggleFaceId, setupFaceIdCredentials } = useAuth();
+  const [isTogglingFaceId, setIsTogglingFaceId] = useState(false);
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [credentialsLoading, setCredentialsLoading] = useState(false);
 
   const handleLogout = () => {
     console.log("Profile: Logout button pressed");
@@ -45,40 +51,114 @@ export default function ProfileScreen() {
     );
   };
 
-  const profileOptions = [
-    {
-      id: 'account',
-      title: 'Account Settings',
-      icon: 'person',
-      onPress: () => Alert.alert('Account Settings', 'Feature coming soon!'),
-    },
-    {
-      id: 'notifications',
-      title: 'Notifications',
-      icon: 'notifications',
-      onPress: () => setNotifications(!notifications),
-      toggle: true,
-      toggleValue: notifications,
-    },
-    {
-      id: 'privacy',
-      title: 'Privacy & Security',
-      icon: 'security',
-      onPress: () => Alert.alert('Privacy & Security', 'Feature coming soon!'),
-    },
-    {
-      id: 'help',
-      title: 'Help & Support',
-      icon: 'help',
-      onPress: () => Alert.alert('Help & Support', 'Feature coming soon!'),
-    },
-    {
-      id: 'about',
-      title: 'About',
-      icon: 'info',
-      onPress: () => Alert.alert('About', 'Lacey App v1.0.0'),
-    },
-  ];
+  const handleFaceIdToggle = async (enabled: boolean) => {
+    if (isTogglingFaceId) return;
+    
+    setIsTogglingFaceId(true);
+    
+    try {
+      if (enabled && !faceIdAvailable) {
+        Alert.alert(
+          'Face ID Not Available',
+          'Face ID is not available on this device. Please ensure Face ID is set up in your device settings.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      if (enabled) {
+        // Show credentials modal for Face ID setup
+        setShowCredentialsModal(true);
+        setIsTogglingFaceId(false);
+        return;
+      }
+
+      const success = await toggleFaceId(enabled);
+      if (!success) {
+        Alert.alert(
+          'Error',
+          'Failed to update Face ID settings. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling Face ID:', error);
+      Alert.alert(
+        'Error',
+        'An error occurred while updating Face ID settings.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsTogglingFaceId(false);
+    }
+  };
+
+  const handleCredentialsSubmit = async () => {
+    if (!credentials.email.trim() || !credentials.password) {
+      Alert.alert('Error', 'Please enter both email and password.');
+      return;
+    }
+
+    setCredentialsLoading(true);
+    
+    try {
+      // First test Face ID authentication
+      const faceIdResult = await FaceIdService.authenticate('Enable Face ID for quick access to your account');
+      if (!faceIdResult.success) {
+        Alert.alert(
+          'Face ID Authentication Failed',
+          FaceIdService.getErrorMessage(faceIdResult.errorCode),
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Setup Face ID credentials
+      const setupSuccess = await setupFaceIdCredentials(credentials.email, credentials.password);
+      
+      if (setupSuccess) {
+        // Enable Face ID preference
+        const toggleSuccess = await toggleFaceId(true);
+        
+        if (toggleSuccess) {
+          Alert.alert(
+            'Success',
+            'Face ID has been enabled successfully! You can now use Face ID to login.',
+            [{ text: 'OK' }]
+          );
+          setShowCredentialsModal(false);
+          setCredentials({ email: '', password: '' });
+        } else {
+          Alert.alert(
+            'Error',
+            'Failed to enable Face ID. Please try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else {
+        Alert.alert(
+          'Invalid Credentials',
+          'The email and password you entered are incorrect. Please check your credentials and try again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error setting up Face ID credentials:', error);
+      Alert.alert(
+        'Error',
+        'An error occurred while setting up Face ID. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setCredentialsLoading(false);
+    }
+  };
+
+  const handleCredentialsCancel = () => {
+    setShowCredentialsModal(false);
+    setCredentials({ email: '', password: '' });
+    setShowPassword(false);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -140,17 +220,26 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Notifications Section */}
+        {/* Security Section */}
         <View style={styles.notificationsSection}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={styles.sectionTitle}>Security</Text>
           <View style={styles.notificationItem}>
             <View style={styles.optionLeft}>
               <MaterialIcons name="face" size={24} color="#00234C" />
-              <Text style={styles.optionTitle}>Face lock</Text>
+              <View>
+                <Text style={styles.optionTitle}>Face ID</Text>
+                {!faceIdAvailable && (
+                  <Text style={styles.optionSubtitle}>Not available on this device</Text>
+                )}
+              </View>
             </View>
-            <View style={[styles.toggle, !notifications && styles.toggleActive]}>
-              <View style={[styles.toggleThumb, !notifications && styles.toggleThumbActive]} />
-            </View>
+            <TouchableOpacity 
+              style={[styles.toggle, faceIdEnabled && styles.toggleActive]}
+              onPress={() => handleFaceIdToggle(!faceIdEnabled)}
+              disabled={isTogglingFaceId || (!faceIdAvailable && !faceIdEnabled)}
+            >
+              <View style={[styles.toggleThumb, faceIdEnabled && styles.toggleThumbActive]} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -178,6 +267,98 @@ export default function ProfileScreen() {
           }
         }}
       />
+
+      {/* Face ID Credentials Modal */}
+      <Modal
+        visible={showCredentialsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleCredentialsCancel}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Setup Face ID</Text>
+              <TouchableOpacity onPress={handleCredentialsCancel}>
+                <MaterialIcons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              Enter your email and password to enable Face ID authentication. Your credentials will be securely stored and used for Face ID login.
+            </Text>
+
+            <View style={styles.modalForm}>
+              <Text style={styles.modalInputLabel}>Email</Text>
+              <View style={styles.modalInputWrapper}>
+                <MaterialIcons
+                  name="mail-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.modalIcon}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter your email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={credentials.email}
+                  onChangeText={(text) => setCredentials({ ...credentials, email: text })}
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <Text style={styles.modalInputLabel}>Password</Text>
+              <View style={styles.modalInputWrapper}>
+                <MaterialIcons
+                  name="lock-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.modalIcon}
+                />
+                <TextInput
+                  style={styles.modalInput}
+                  placeholder="Enter your password"
+                  secureTextEntry={!showPassword}
+                  value={credentials.password}
+                  onChangeText={(text) => setCredentials({ ...credentials, password: text })}
+                  placeholderTextColor="#999"
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <MaterialIcons
+                    name={showPassword ? "visibility" : "visibility-off"}
+                    size={20}
+                    color="#666"
+                    style={styles.modalVisibilityIcon}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={handleCredentialsCancel}
+                disabled={credentialsLoading}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalSubmitButton, credentialsLoading && styles.modalSubmitButtonDisabled]}
+                onPress={handleCredentialsSubmit}
+                disabled={credentialsLoading || !credentials.email.trim() || !credentials.password}
+              >
+                {credentialsLoading ? (
+                  <Text style={styles.modalSubmitText}>Setting up...</Text>
+                ) : (
+                  <Text style={styles.modalSubmitText}>Enable Face ID</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -225,6 +406,12 @@ const styles = StyleSheet.create({
     color: '#00234C',
     marginLeft: 16,
     fontWeight: '500',
+  },
+  optionSubtitle: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 16,
+    marginTop: 2,
   },
   optionRight: {
     marginLeft: 16,
@@ -300,5 +487,104 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     marginLeft: 8,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#00234C',
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalForm: {
+    marginBottom: 24,
+  },
+  modalInputLabel: {
+    fontSize: 14,
+    color: '#00234C',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  modalInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
+    marginBottom: 16,
+    height: 50,
+    paddingHorizontal: 15,
+  },
+  modalIcon: {
+    marginRight: 10,
+  },
+  modalInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000',
+    height: '100%',
+  },
+  modalVisibilityIcon: {
+    marginLeft: 10,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  modalSubmitButton: {
+    flex: 1,
+    backgroundColor: '#00234C',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalSubmitButtonDisabled: {
+    opacity: 0.6,
+  },
+  modalSubmitText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
   },
 });

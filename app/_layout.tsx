@@ -43,6 +43,8 @@ function AppContent() {
       ) : (
         <>
           <Stack.Screen name="dashboard" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="editProfile" />
           <Stack.Screen name="proposalsList" />
           <Stack.Screen name="proposal" />
           <Stack.Screen name="proposalDetail" />
