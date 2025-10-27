@@ -261,6 +261,20 @@ export default function SignUpScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Terms and Privacy Policy */}
+            <View style={styles.termsContainer}>
+              <Text style={styles.termsText}>
+                By continuing, you agree to our{' '}
+                <TouchableOpacity onPress={() => router.push('/termsConditions')}>
+                  <Text style={styles.termsLink}>Terms & Conditions</Text>
+                </TouchableOpacity>
+                {' '}and{' '}
+                <TouchableOpacity onPress={() => router.push('/privacyPolicy')}>
+                  <Text style={styles.termsLink}>Privacy Policy</Text>
+                </TouchableOpacity>
+              </Text>
+            </View>
+
             {/* Login Link */}
             <View style={styles.loginRow}>
               <Text style={styles.loginText}>Already have an account?</Text>
@@ -323,6 +337,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
     marginLeft: 8,
+  },
+  termsContainer: {
+    marginTop: 20,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  termsText: {
+    fontSize: 12,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  termsLink: {
+    fontSize: 12,
+    color: "#00234C",
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   loginRow: { flexDirection: "row", justifyContent: "center", marginTop: height * 0.04 },
   loginText: { color: "#00234C", fontSize: 14, marginRight: 6 },
