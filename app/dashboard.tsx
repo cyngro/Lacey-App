@@ -33,6 +33,43 @@ interface DashboardData {
   follows: { count: number; change: number; breakdown: { unfollows: number; notFollowers: number } };
 }
 
+interface MetaStatsData {
+  success: boolean;
+  message: string;
+  pageId: string;
+  stats: {
+    id: string;
+    name: string;
+    category: string;
+    fan_count: number;
+    followers_count: number;
+    link: string;
+    website: string;
+    phone: string;
+    emails: string[];
+    insights: {
+      totalFans: number;
+      totalViews: number;
+      totalReach: number;
+      totalImpressions: number;
+      totalEngagement: number;
+      fanAdds: number;
+      fanRemoves: number;
+      videoViews: number;
+      postEngagements: number;
+      dailyData: any[];
+    };
+    lastUpdated: string;
+  };
+  insights: {
+    last_7_days: any;
+    last_30_days: any;
+    last_90_days: any;
+  };
+  posts: any[];
+  demographics: any;
+}
+
 interface Proposal {
   _id: string;
   customerName: string;
@@ -74,18 +111,13 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'chat' | 'profile'>('home');
+  const [metaStats, setMetaStats] = useState<MetaStatsData | null>(null);
+  const [metaStatsLoading, setMetaStatsLoading] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      // Initialize dashboard data with default values
-      setDashboardData({
-        invoices: 0,
-        proposals: 0,
-        views: { count: 365, change: 22.1, breakdown: { followers: 2.7, nonFollowers: 97.3 } },
-        reach: { count: 25, change: -7.4, breakdown: { followers: 2, nonFollowers: 23 } },
-        interactions: { count: 4, change: 0, breakdown: { followers: 0, nonFollowers: 4 } },
-        follows: { count: 2, change: -33.3, breakdown: { unfollows: 0, notFollowers: 2 } }
-      });
+      // Initialize with null to show skeleton loading
+      setDashboardData(null);
     } catch (error) {
       console.error("Failed to initialize dashboard data:", error);
     } finally {
@@ -132,13 +164,73 @@ export default function DashboardScreen() {
     }
   }, [selectedCompany]);
 
+  const fetchMetaStats = useCallback(async () => {
+    try {
+      setMetaStatsLoading(true);
+      const pageId = "718131491384965";
+      const url = `${API_URL}/api/meta-stats/pages/${pageId}`;
+      console.log("Dashboard - Fetching meta stats for page:", pageId);
+      console.log("Dashboard - Meta stats API URL:", url);
+      
+      // Get authentication token
+      const token = await getToken();
+      const headers: Record<string, string> = { 
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, { headers });
+      const data: MetaStatsData = await response.json();
+      
+      console.log("Dashboard - Meta stats response:", data);
+      
+      if (response.ok && data.success) {
+        setMetaStats(data);
+        
+        // Update dashboard data with meta stats
+        setDashboardData(prev => ({
+          invoices: prev?.invoices || 0,
+          proposals: prev?.proposals || 0,
+          views: { 
+            count: data.stats.insights.totalViews || 0, 
+            change: 0.43,
+            breakdown: { followers: 2.7, nonFollowers: 97.3 }
+          },
+          reach: { 
+            count: data.stats.insights.totalReach || 0, 
+            change: -1.39,
+            breakdown: { followers: 2, nonFollowers: 23 }
+          },
+          interactions: { 
+            count: data.stats.insights.totalEngagement || 0, 
+            change: 0.39,
+            breakdown: { followers: 0, nonFollowers: 4 }
+          },
+          follows: { 
+            count: data.stats.insights.totalFans || 0, 
+            change: 2.69,
+            breakdown: { unfollows: 0, notFollowers: 2 }
+          }
+        }));
+      } else {
+        console.log("Dashboard - Failed to fetch meta stats, status:", response.status);
+      }
+    } catch (error) {
+      console.error("Failed to fetch meta stats:", error);
+    } finally {
+      setMetaStatsLoading(false);
+    }
+  }, []);
+
   const fetchRecentProposals = useCallback(async () => {
     try {
       setProposalsLoading(true);
       const companyParam = selectedCompany ? `&company=${encodeURIComponent(selectedCompany)}` : "";
       const url = `${API_URL}/api/proposals?page=1&limit=10${companyParam}`;
-      console.log("Dashboard - Fetching proposals for company:", selectedCompany);
-      console.log("Dashboard - API URL:", url);
+
       
       // Get authentication token
       const token = await getToken();
@@ -171,8 +263,9 @@ export default function DashboardScreen() {
   useEffect(() => {
     fetchDashboardData();
     fetchTotalCounts();
+    fetchMetaStats();
     fetchRecentProposals();
-  }, [fetchDashboardData, fetchTotalCounts, fetchRecentProposals]);
+  }, [fetchDashboardData, fetchTotalCounts, fetchMetaStats, fetchRecentProposals]);
 
   // Refetch proposals when selectedCompany changes
   useEffect(() => {
@@ -192,7 +285,7 @@ export default function DashboardScreen() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await Promise.all([fetchTotalCounts(), fetchRecentProposals()]);
+    await Promise.all([fetchTotalCounts(), fetchMetaStats(), fetchRecentProposals()]);
     setRefreshing(false);
   }
 
@@ -355,115 +448,124 @@ export default function DashboardScreen() {
         </View>
         {!!searchError && <Text style={styles.errorText}>{searchError}</Text>} */}
 
-        {/* Summary Cards */}
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryTitle}>Invoice</Text>
-            <Text style={styles.summaryNumber}>{dashboardData?.proposals}</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={[styles.summaryCard, { backgroundColor: "#2196F3" }]}>
-            <Text style={styles.summaryTitle}>Proposals</Text>
-            <Text style={styles.summaryNumber}>{dashboardData?.proposals}</Text>
-          </View>
-        </View>
 
         {/* Overview Section */}
         <View style={styles.overviewSection}>
           <View style={styles.overviewHeader}>
             <Text style={styles.overviewTitle}>Overview</Text>
-            <TouchableOpacity style={styles.customizeButton}>
-              <Text style={styles.customizeText}>Customise view: Business</Text>
-              <MaterialIcons name="keyboard-arrow-down" size={16} color="#00234C" />
-            </TouchableOpacity>
+            <View style={styles.businessSelector}>
+              <Text style={styles.businessSelectorText}>Lacey Business Suite</Text>
+            </View>
           </View>
 
           {/* Metrics Grid */}
           <View style={styles.metricsGrid}>
-            {/* Views */}
+            {/* Total Views */}
             <View style={styles.metricCard}>
-              <View style={styles.metricHeader}>
-                <Text style={styles.metricTitle}>Views</Text>
-                <MaterialIcons name="info-outline" size={16} color="#666" />
+              <View style={[styles.metricIcon, { backgroundColor: '#E8F5E8' }]}>
+                <MaterialIcons name="visibility" size={20} color="#4CAF50" />
               </View>
-              <Text style={styles.metricValue}>{dashboardData?.views.count || 365}</Text>
-              <Text style={[styles.metricChange, { color: formatChange(dashboardData?.views.change || 22.1).color }]}>
-                {formatChange(dashboardData?.views.change || 22.1).text}
-              </Text>
-              <View style={styles.metricBreakdown}>
-                <Text style={styles.breakdownText}>
-                  From followers {dashboardData?.views.breakdown.followers || 2.7}% ↓ 37.2%
+              <Text style={styles.metricLabel}>Total Views</Text>
+              {metaStatsLoading ? (
+                <View style={styles.skeletonValue} />
+              ) : (
+                <Text style={styles.metricValue}>{dashboardData?.views.count || 0}</Text>
+              )}
+              {metaStatsLoading ? (
+                <View style={styles.skeletonChange} />
+              ) : (
+                <Text style={[styles.metricChange, { color: '#4CAF50' }]}>
+                  {formatChange(dashboardData?.views.change || 0).text}
                 </Text>
-                <Text style={styles.breakdownText}>
-                  From non-followers {dashboardData?.views.breakdown.nonFollowers || 97.3}% ↑ 1.7%
-                </Text>
+              )}
+              <View style={styles.progressBarContainer}>
+                {metaStatsLoading ? (
+                  <View style={styles.skeletonProgressBar} />
+                ) : (
+                  <View style={[styles.progressBar, { backgroundColor: '#4CAF50', width: '65%' }]} />
+                )}
               </View>
-              <View style={styles.miniGraph}>
-                <View style={styles.graphLine} />
-              </View>
-              <MaterialIcons name="chevron-right" size={16} color="#666" style={styles.cardArrow} />
             </View>
 
-            {/* Reach */}
+            {/* Total Reach */}
             <View style={styles.metricCard}>
-              <View style={styles.metricHeader}>
-                <Text style={styles.metricTitle}>Reach</Text>
-                <MaterialIcons name="info-outline" size={16} color="#666" />
+              <View style={[styles.metricIcon, { backgroundColor: '#FFF3E0' }]}>
+                <MaterialIcons name="trending-up" size={20} color="#FF9800" />
               </View>
-              <Text style={styles.metricValue}>{dashboardData?.reach.count || 25}</Text>
-              <Text style={[styles.metricChange, { color: formatChange(dashboardData?.reach.change || -7.4).color }]}>
-                {formatChange(dashboardData?.reach.change || -7.4).text}
-              </Text>
-              <View style={styles.metricBreakdown}>
-                <Text style={styles.breakdownText}>
-                  From followers {dashboardData?.reach.breakdown.followers || 2} ↓ 60%
+              <Text style={styles.metricLabel}>Total Reach</Text>
+              {metaStatsLoading ? (
+                <View style={styles.skeletonValue} />
+              ) : (
+                <Text style={styles.metricValue}>{dashboardData?.reach.count || 0}</Text>
+              )}
+              {metaStatsLoading ? (
+                <View style={styles.skeletonChange} />
+              ) : (
+                <Text style={[styles.metricChange, { color: '#F44336' }]}>
+                  {formatChange(dashboardData?.reach.change || 0).text}
                 </Text>
-                <Text style={styles.breakdownText}>
-                  From non-followers {dashboardData?.reach.breakdown.nonFollowers || 23} ↑ 4.5%
-                </Text>
+              )}
+              <View style={styles.progressBarContainer}>
+                {metaStatsLoading ? (
+                  <View style={styles.skeletonProgressBar} />
+                ) : (
+                  <View style={[styles.progressBar, { backgroundColor: '#FF9800', width: '45%' }]} />
+                )}
               </View>
-              <View style={styles.miniGraph}>
-                <View style={styles.graphLine} />
-              </View>
-              <MaterialIcons name="chevron-right" size={16} color="#666" style={styles.cardArrow} />
             </View>
 
-            {/* Interactions */}
+            {/* Fan Count */}
             <View style={styles.metricCard}>
-              <View style={styles.metricHeader}>
-                <Text style={styles.metricTitle}>Interactions</Text>
-                <MaterialIcons name="info-outline" size={16} color="#666" />
+              <View style={[styles.metricIcon, { backgroundColor: '#E8F5E8' }]}>
+                <MaterialIcons name="favorite" size={20} color="#E91E63" />
               </View>
-              <Text style={styles.metricValue}>{dashboardData?.interactions.count || 4}</Text>
-              <Text style={[styles.metricChange, { color: "#000" }]}>0%</Text>
-              <View style={styles.metricBreakdown}>
-                <Text style={styles.breakdownText}>From followers --</Text>
-                <Text style={styles.breakdownText}>From non-followers {dashboardData?.interactions.breakdown.nonFollowers || 4} 0%</Text>
+              <Text style={styles.metricLabel}>Fan Count</Text>
+              {metaStatsLoading ? (
+                <View style={styles.skeletonValue} />
+              ) : (
+                <Text style={styles.metricValue}>{metaStats?.stats.fan_count || 0}</Text>
+              )}
+              {metaStatsLoading ? (
+                <View style={styles.skeletonChange} />
+              ) : (
+                <Text style={[styles.metricChange, { color: '#4CAF50' }]}>
+                  {formatChange(0).text}
+                </Text>
+              )}
+              <View style={styles.progressBarContainer}>
+                {metaStatsLoading ? (
+                  <View style={styles.skeletonProgressBar} />
+                ) : (
+                  <View style={[styles.progressBar, { backgroundColor: '#E91E63', width: '20%' }]} />
+                )}
               </View>
-              <View style={styles.miniGraph}>
-                <View style={styles.graphLine} />
-              </View>
-              <MaterialIcons name="chevron-right" size={16} color="#666" style={styles.cardArrow} />
             </View>
 
-            {/* Follows */}
+            {/* Followers Count */}
             <View style={styles.metricCard}>
-              <View style={styles.metricHeader}>
-                <Text style={styles.metricTitle}>Follows</Text>
-                <MaterialIcons name="info-outline" size={16} color="#666" />
+              <View style={[styles.metricIcon, { backgroundColor: '#E3F2FD' }]}>
+                <MaterialIcons name="people" size={20} color="#2196F3" />
               </View>
-              <Text style={styles.metricValue}>{dashboardData?.follows.count || 2}</Text>
-              <Text style={[styles.metricChange, { color: formatChange(dashboardData?.follows.change || -33.3).color }]}>
-                {formatChange(dashboardData?.follows.change || -33.3).text}
-              </Text>
-              <View style={styles.metricBreakdown}>
-                <Text style={styles.breakdownText}>Unfollows {dashboardData?.follows.breakdown.unfollows || 0} 0%</Text>
-                <Text style={styles.breakdownText}>Not followers {dashboardData?.follows.breakdown.notFollowers || 2} ↓ 33.3%</Text>
+              <Text style={styles.metricLabel}>Followers</Text>
+              {metaStatsLoading ? (
+                <View style={styles.skeletonValue} />
+              ) : (
+                <Text style={styles.metricValue}>{metaStats?.stats.followers_count || 0}</Text>
+              )}
+              {metaStatsLoading ? (
+                <View style={styles.skeletonChange} />
+              ) : (
+                <Text style={[styles.metricChange, { color: '#4CAF50' }]}>
+                  {formatChange(0).text}
+                </Text>
+              )}
+              <View style={styles.progressBarContainer}>
+                {metaStatsLoading ? (
+                  <View style={styles.skeletonProgressBar} />
+                ) : (
+                  <View style={[styles.progressBar, { backgroundColor: '#2196F3', width: '20%' }]} />
+                )}
               </View>
-              <View style={styles.miniGraph}>
-                <View style={styles.graphLine} />
-              </View>
-              <MaterialIcons name="chevron-right" size={16} color="#666" style={styles.cardArrow} />
             </View>
           </View>
         </View>
@@ -597,31 +699,74 @@ const styles = StyleSheet.create({
   // Overview
   overviewSection: { marginBottom: 30 },
   overviewHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-  overviewTitle: { fontSize: 20, fontWeight: "700", color: "#00234C" },
-  customizeButton: { flexDirection: "row", alignItems: "center" },
-  customizeText: { fontSize: 14, color: "#00234C", marginRight: 4 },
+  overviewTitle: { fontSize: 24, fontWeight: "700", color: "#00234C" },
+  businessSelector: { 
+    backgroundColor: "#F5F5F5", 
+    paddingHorizontal: 12, 
+    paddingVertical: 8, 
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0"
+  },
+  businessSelectorText: { fontSize: 14, color: "#666" },
   
   // Metrics Grid
   metricsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   metricCard: {
     backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
     borderRadius: 12,
-    padding: 16,
+    padding: 20,
     width: (width - 60) / 2,
     marginBottom: 16,
-    position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  metricHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-  metricTitle: { fontSize: 14, fontWeight: "600", color: "#00234C" },
-  metricValue: { fontSize: 28, fontWeight: "700", color: "#00234C", marginBottom: 4 },
-  metricChange: { fontSize: 14, fontWeight: "600", marginBottom: 8 },
-  metricBreakdown: { marginBottom: 12 },
-  breakdownText: { fontSize: 12, color: "#666", marginBottom: 2 },
-  miniGraph: { height: 20, marginBottom: 8 },
-  graphLine: { height: 2, backgroundColor: "#2196F3", borderRadius: 1 },
-  cardArrow: { position: "absolute", top: 16, right: 16 },
+  metricIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  metricLabel: { fontSize: 14, fontWeight: "500", color: "#666", marginBottom: 8 },
+  metricValue: { fontSize: 32, fontWeight: "700", color: "#00234C", marginBottom: 4 },
+  metricChange: { fontSize: 14, fontWeight: "600", marginBottom: 12 },
+  progressBarContainer: {
+    height: 4,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  
+  // Skeleton Loading Styles
+  skeletonValue: {
+    height: 32,
+    width: '80%',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    marginBottom: 4,
+  },
+  skeletonChange: {
+    height: 14,
+    width: '60%',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 4,
+    marginBottom: 12,
+  },
+  skeletonProgressBar: {
+    height: "100%",
+    width: '50%',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 2,
+  },
   
   // Proposals Section
   proposalsSection: { marginBottom: 30 },

@@ -13,5 +13,4 @@ export const API_URL = `http://localhost:5001`;
 // const RAILWAY_URL = "https://lacey-backend-production.up.railway.app"; // Railway production URL
 // const DEFAULT_HOST = Platform.OS === "android" ? ANDROID_LOCALHOST : LOCAL_IP;
 
-// export const API_URL = process.env.EXPO_PUBLIC_API_URL || RAILWAY_URL;
-
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || RAILWAY_URL; 
