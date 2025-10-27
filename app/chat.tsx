@@ -13,7 +13,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import ChatInterface from '../components/chat/ChatInterface';
-import ConversationList from '../components/chat/ConversationList';
 import { ConversationDetails } from '../types/chat';
 
 export default function ChatScreen() {
