@@ -29,14 +29,33 @@ class ChatApiService {
     return response.json();
   }
 
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    try {
+      const { getToken } = await import('../utils/authStorage');
+      const token = await getToken();
+      if (token) {
+        return {
+          'Authorization': `Bearer ${token}`,
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+    }
+    return {};
+  }
+
   private async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
     try {
+      const authHeaders = await this.getAuthHeaders();
+      const isFormData = options.body instanceof FormData;
+      
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         headers: {
-          'Content-Type': 'application/json',
+          ...(!isFormData && { 'Content-Type': 'application/json' }),
+          ...authHeaders,
           ...options.headers,
         },
         ...options,
@@ -73,14 +92,11 @@ class ChatApiService {
     formData.append('image', data.image);
     formData.append('content', data.content);
     formData.append('messageType', data.messageType);
-
+    
     return this.makeRequest<SendMessageResponse>(
       `/api/chat/conversations/${data.conversationId}/messages/upload`,
       {
         method: 'POST',
-        headers: {
-          // Don't set Content-Type for FormData, let the browser set it
-        },
         body: formData,
       }
     );

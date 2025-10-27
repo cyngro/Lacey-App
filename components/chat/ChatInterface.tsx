@@ -20,6 +20,7 @@ import { chatApiService } from '../../services/chatApi';
 import { Message, ConversationDetails } from '../../types/chat';
 import MessageBubble from './MessageBubble';
 import ImageUploadModal from './ImageUploadModal';
+import { API_URL } from '../../constants/api';
 
 interface ChatInterfaceProps {
   conversationId: string;
@@ -47,7 +48,57 @@ export default function ChatInterface({
     try {
       setIsLoadingMessages(true);
       const response = await chatApiService.getConversationDetails(conversationId);
-      setMessages(response.data.messages);
+      
+      console.log('Loaded conversation with', response.data.messages.length, 'messages');
+      
+      // Log image URLs to debug
+      response.data.messages.forEach(msg => {
+        if (msg.imageUrl) {
+          console.log('Message image URL:', msg.imageUrl, 'for message:', msg.messageId, 'role:', msg.role);
+        }
+      });
+      
+      // Remove duplicate images: only show each image once
+      const seenImageUrls = new Set<string>();
+      const cleanedMessages = response.data.messages.map((msg, index, array) => {
+        if (!msg.imageUrl) {
+          return msg;
+        }
+        
+        const prevMsg = array[index - 1];
+        const nextMsg = array[index + 1];
+        
+        // If this is a user message with an image
+        if (msg.role === 'user' && msg.imageUrl) {
+          // Check if the next message is from assistant and has the same image
+          if (nextMsg && nextMsg.role === 'assistant' && nextMsg.imageUrl === msg.imageUrl) {
+            // Remove image from user message if assistant has the same image
+            return { ...msg, imageUrl: undefined };
+          }
+        }
+        
+        // If this is an assistant message with an image
+        if (msg.role === 'assistant' && msg.imageUrl) {
+          // Check if we've already seen this image (consecutive duplicates)
+          if (seenImageUrls.has(msg.imageUrl)) {
+            // Remove image from this message if we've seen it before
+            return { ...msg, imageUrl: undefined };
+          }
+          
+          // Check if the previous message has the same image
+          if (prevMsg && prevMsg.imageUrl === msg.imageUrl) {
+            // Keep the previous one, remove from this one
+            return { ...msg, imageUrl: undefined };
+          }
+          
+          // Mark this image as seen
+          seenImageUrls.add(msg.imageUrl);
+        }
+        
+        return msg;
+      });
+      
+      setMessages(cleanedMessages);
       onConversationUpdate?.(response.data);
     } catch (error) {
       console.error('Failed to load conversation:', error);
@@ -114,10 +165,32 @@ export default function ChatInterface({
         messageType: type,
       });
 
+      console.log('API Response:', response.data);
+      console.log('Assistant message:', response.data.assistantMessage);
+
       // Replace temp message and add assistant response
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.messageId !== userMessage.messageId);
-        return [...filtered, response.data.userMessage, response.data.assistantMessage];
+        
+        // Check if user and assistant messages have the same image
+        let userMsg = response.data.userMessage;
+        let assistantMsg = response.data.assistantMessage;
+        
+        if (userMsg.imageUrl && assistantMsg.imageUrl === userMsg.imageUrl) {
+          // Remove image from user message if assistant has the same image
+          userMsg = { ...userMsg, imageUrl: undefined };
+        }
+        
+        // Check if the last message in the list is an assistant message with the same image
+        if (assistantMsg.imageUrl && filtered.length > 0) {
+          const lastMsg = filtered[filtered.length - 1];
+          if (lastMsg.role === 'assistant' && lastMsg.imageUrl === assistantMsg.imageUrl) {
+            // Remove image from new assistant message if previous one has the same image
+            assistantMsg = { ...assistantMsg, imageUrl: undefined };
+          }
+        }
+        
+        return [...filtered, userMsg, assistantMsg];
       });
 
       // Scroll to bottom
@@ -161,7 +234,26 @@ export default function ChatInterface({
       // Replace temp message and add assistant response
       setMessages(prev => {
         const filtered = prev.filter(msg => msg.messageId !== userMessage.messageId);
-        return [...filtered, response.data.userMessage, response.data.assistantMessage];
+        
+        // Check if user and assistant messages have the same image
+        let userMsg = response.data.userMessage;
+        let assistantMsg = response.data.assistantMessage;
+        
+        if (userMsg.imageUrl && assistantMsg.imageUrl === userMsg.imageUrl) {
+          // Remove image from user message if assistant has the same image
+          userMsg = { ...userMsg, imageUrl: undefined };
+        }
+        
+        // Check if the last message in the list is an assistant message with the same image
+        if (assistantMsg.imageUrl && filtered.length > 0) {
+          const lastMsg = filtered[filtered.length - 1];
+          if (lastMsg.role === 'assistant' && lastMsg.imageUrl === assistantMsg.imageUrl) {
+            // Remove image from new assistant message if previous one has the same image
+            assistantMsg = { ...assistantMsg, imageUrl: undefined };
+          }
+        }
+        
+        return [...filtered, userMsg, assistantMsg];
       });
 
       // Scroll to bottom
@@ -178,8 +270,35 @@ export default function ChatInterface({
     }
   };
 
+  // Fix image URL to use correct API URL
+  const getImageUrl = (url: string) => {
+    console.log('Preview - Original image URL:', url);
+    
+    // If the URL is already absolute with a protocol, return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Replace localhost URLs with proper API URL if needed
+      if (url.includes('localhost:5000') && !url.includes(API_URL)) {
+        const replacedUrl = url.replace(/http:\/\/localhost:5000/g, API_URL);
+        console.log('Preview - Replaced URL:', replacedUrl);
+        return replacedUrl;
+      }
+      console.log('Preview - Using URL as-is:', url);
+      return url;
+    }
+    // If it's a relative URL, construct the full URL
+    if (url.startsWith('/')) {
+      const fullUrl = `${API_URL}${url}`;
+      console.log('Preview - Constructed full URL:', fullUrl);
+      return fullUrl;
+    }
+    // Otherwise return as is
+    console.warn('Preview - Warning: URL format unexpected:', url);
+    return url;
+  };
+
   const handleImagePress = (imageUrl: string) => {
-    setPreviewImageUrl(imageUrl);
+    const processedUrl = getImageUrl(imageUrl);
+    setPreviewImageUrl(processedUrl);
     setShowImagePreview(true);
   };
 

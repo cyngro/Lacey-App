@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,38 +24,61 @@ export default function MessageBubble({
   onRetry,
   isLoading = false,
 }: MessageBubbleProps) {
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageLoading, setImageLoading] = useState(!!message.imageUrl);
   const [imageError, setImageError] = useState(false);
   
   const isUser = message.role === 'user';
   const isImageMessage = ['image_generation', 'image_edit', 'image_upload'].includes(message.messageType);
 
+  // Reset loading state when message changes and add timeout
+  useEffect(() => {
+    if (message.imageUrl) {
+      setImageLoading(true);
+      setImageError(false);
+      
+      // Set a timeout to prevent infinite loading
+      const timeout = setTimeout(() => {
+        console.warn('Image loading timeout for message:', message.messageId);
+        setImageLoading(prev => {
+          if (prev) {
+            setImageError(true);
+            return false;
+          }
+          return prev;
+        });
+      }, 30000); // 30 second timeout
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [message.messageId, message.imageUrl]);
+
   // Fix image URL to use correct API URL
   const getImageUrl = (url: string) => {
-    if (url.startsWith('http://localhost:5000')) {
-      return url.replace('http://localhost:5000', API_URL);
+    console.log('Original image URL:', url);
+    
+    // If the URL is already absolute with a protocol, return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Replace localhost URLs with proper API URL if needed
+      if (url.includes('localhost:5000') && !url.includes(API_URL)) {
+        const replacedUrl = url.replace(/http:\/\/localhost:5000/g, API_URL);
+        console.log('Replaced URL:', replacedUrl);
+        return replacedUrl;
+      }
+      console.log('Using URL as-is:', url);
+      return url;
     }
+    // If it's a relative URL, construct the full URL
+    if (url.startsWith('/')) {
+      const fullUrl = `${API_URL}${url}`;
+      console.log('Constructed full URL:', fullUrl);
+      return fullUrl;
+    }
+    // Otherwise return as is (shouldn't happen for backend images)
+    console.warn('Warning: URL format unexpected:', url);
     return url;
   };
 
-  // Debug logging
-  React.useEffect(() => {
-    if (message.imageUrl) {
-      const correctedUrl = getImageUrl(message.imageUrl);
-      console.log('Original Image URL:', message.imageUrl);
-      console.log('Corrected Image URL:', correctedUrl);
-      console.log('Message type:', message.messageType);
-      
-      // Test if URL is accessible
-      fetch(correctedUrl, { method: 'HEAD' })
-        .then(response => {
-          console.log('Image URL accessible:', response.ok, response.status);
-        })
-        .catch(error => {
-          console.log('Image URL not accessible:', error);
-        });
-    }
-  }, [message.imageUrl, message.messageType]);
+  // Removed debug logging to prevent infinite loops
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -91,13 +114,7 @@ export default function MessageBubble({
   return (
     <View style={[styles.container, isUser ? styles.userContainer : styles.assistantContainer]}>
       <View style={[styles.bubble, isUser ? styles.userBubble : styles.assistantBubble]}>
-        {/* Message Type Indicator */}
-        {!isUser && isImageMessage && (
-          <View style={styles.messageTypeIndicator}>
-            <MaterialIcons name={getMessageIcon()} size={16} color="#666" />
-            <Text style={styles.messageTypeText}>{getMessageTypeLabel()}</Text>
-          </View>
-        )}
+        {/* Message Type Indicator - removed for cleaner UI */}
 
         {/* Loading State */}
         {isLoading && (
@@ -145,40 +162,38 @@ export default function MessageBubble({
                   <>
                     <Image
                       source={{ 
-                        uri: getImageUrl(message.imageUrl),
+                        uri: getImageUrl(message.imageUrl!),
                         cache: 'force-cache'
                       }}
-                      style={[styles.messageImage, { opacity: imageLoading ? 0 : 1 }]}
+                      style={styles.messageImage}
                       resizeMode="cover"
                       onLoadStart={() => {
-                        console.log('Image load started:', message.imageUrl);
-                        setImageLoading(true);
+                        console.log('Image load started for message:', message.messageId);
                         setImageError(false);
                       }}
                       onLoad={() => {
-                        console.log('Image loaded successfully:', message.imageUrl);
+                        console.log('Image loaded successfully for message:', message.messageId);
                         setImageLoading(false);
                         setImageError(false);
                       }}
                       onError={(error) => {
-                        console.log('Image load error:', error.nativeEvent.error, message.imageUrl);
+                        const imageUrl = getImageUrl(message.imageUrl!);
+                        console.error('Image load error:', {
+                          messageId: message.messageId,
+                          error: error.nativeEvent.error,
+                          url: imageUrl
+                        });
                         setImageLoading(false);
                         setImageError(true);
                       }}
                       onLoadEnd={() => {
-                        console.log('Image load ended:', message.imageUrl);
+                        setImageLoading(false);
                       }}
                     />
-                    {/* Fallback for debugging */}
-                    <Text style={styles.debugText}>URL: {getImageUrl(message.imageUrl)}</Text>
                   </>
                 )}
                 
-                {!imageLoading && !imageError && (
-                  <View style={styles.imageOverlay}>
-                    <MaterialIcons name="zoom-in" size={24} color="#fff" />
-                  </View>
-                )}
+
               </TouchableOpacity>
             ) : isImageMessage && (
               <View style={styles.imageContainer}>
@@ -208,19 +223,14 @@ export default function MessageBubble({
               </View>
             )}
 
-            {/* Text Content */}
-            <Text style={[styles.messageText, isUser ? styles.userText : styles.assistantText]}>
-              {message.content}
-            </Text>
-
-            {/* Metadata */}
-            {message.metadata && (
-              <View style={styles.metadataContainer}>
-                <Text style={[styles.metadataText, isUser ? styles.userText : styles.assistantText]}>
-                  Size: {message.metadata.imageSizeMB} MB
-                </Text>
-              </View>
+            {/* Text Content - Hidden for image messages to show only the image */}
+            {!isImageMessage && (
+              <Text style={[styles.messageText, isUser ? styles.userText : styles.assistantText]}>
+                {message.content}
+              </Text>
             )}
+
+            {/* Metadata - Hidden for cleaner UI */}
 
             {/* Timestamp */}
             <Text style={[styles.timestamp, isUser ? styles.userTimestamp : styles.assistantTimestamp]}>
@@ -418,16 +428,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 4,
     color: '#666',
-  },
-  debugText: {
-    position: 'absolute',
-    bottom: -20,
-    left: 0,
-    right: 0,
-    fontSize: 10,
-    color: '#999',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    padding: 2,
   },
 });
