@@ -23,8 +23,22 @@ class ChatApiService {
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const errorData: ApiError = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      // Clone the response so we can read it multiple times
+      const clonedResponse = response.clone();
+      try {
+        const errorData: ApiError = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.message || errorData.error || `HTTP error! status: ${response.status}`);
+      } catch (parseError) {
+        // If JSON parsing failed, try to get text from the cloned response
+        try {
+          const text = await clonedResponse.text();
+          console.error('Error response text:', text);
+        } catch (textError) {
+          console.error('Failed to read error response:', textError);
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
     }
     return response.json();
   }
@@ -88,18 +102,52 @@ class ChatApiService {
 
   // Upload and edit an image
   async uploadImage(data: UploadImageRequest): Promise<SendMessageResponse> {
+    console.log('Upload image - conversationId:', data.conversationId);
+    console.log('Upload image - image data:', {
+      uri: data.image.uri,
+      type: data.image.type,
+      fileName: data.image.fileName,
+      fileSize: data.image.fileSize,
+    });
+    
+    // Format image for React Native FormData - create fresh object to avoid "Already read" error
+    const imageUri = data.image.uri;
+    const imageType = data.image.type || 'image/jpeg';
+    const imageName = data.image.fileName || `image_${Date.now()}.jpg`;
+    
+    // Create a completely fresh file object for FormData
     const formData = new FormData();
-    formData.append('image', data.image);
+    formData.append('conversationId', data.conversationId);
+    formData.append('image', {
+      uri: imageUri,
+      type: imageType,
+      name: imageName,
+    } as any);
     formData.append('content', data.content);
     formData.append('messageType', data.messageType);
     
-    return this.makeRequest<SendMessageResponse>(
-      `/api/chat/conversations/${data.conversationId}/messages/upload`,
-      {
-        method: 'POST',
-        body: formData,
-      }
-    );
+    console.log('Uploading to:', `${this.baseUrl}/api/chat/conversations/${data.conversationId}/messages/upload`);
+    console.log('FormData fields:', {
+      conversationId: data.conversationId,
+      content: data.content,
+      messageType: data.messageType,
+      hasImage: !!imageUri
+    });
+    
+    try {
+      const response = await this.makeRequest<SendMessageResponse>(
+        `/api/chat/conversations/${data.conversationId}/messages/upload`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+      console.log('Upload successful');
+      return response;
+    } catch (error) {
+      console.error('Upload failed with error:', error);
+      throw error;
+    }
   }
 
   // Get conversation details with messages

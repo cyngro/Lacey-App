@@ -58,9 +58,19 @@ export default function ChatInterface({
         }
       });
       
+      // Filter out success messages from assistant
+      const withoutSuccessMessages = response.data.messages.filter(msg => {
+        const isSuccessMessage = msg.content && (
+          msg.content.toLowerCase().includes('generated successfully') ||
+          msg.content.toLowerCase().includes('upload successfully') ||
+          msg.content.toLowerCase().includes('success')
+        );
+        return !isSuccessMessage;
+      });
+      
       // Remove duplicate images: only show each image once
       const seenImageUrls = new Set<string>();
-      const cleanedMessages = response.data.messages.map((msg, index, array) => {
+      const cleanedMessages = withoutSuccessMessages.map((msg, index, array) => {
         if (!msg.imageUrl) {
           return msg;
         }
@@ -143,12 +153,14 @@ export default function ChatInterface({
   const sendMessage = async (content: string, type: 'text' | 'image_generation' | 'image_edit' | 'image_upload' = 'text') => {
     if (!content.trim()) return;
 
+    const tempMessageId = `temp_${Date.now()}`;
+
     try {
       setIsLoading(true);
       
       // Add user message immediately
       const userMessage: Message = {
-        messageId: `temp_${Date.now()}`,
+        messageId: tempMessageId,
         role: 'user',
         content: content.trim(),
         messageType: type,
@@ -200,21 +212,23 @@ export default function ChatInterface({
       console.error('Failed to send message:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
       
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg.messageId !== `temp_${Date.now()}`));
+      // Remove temp message on error using the actual temp ID
+      setMessages(prev => prev.filter(msg => msg.messageId !== tempMessageId));
     } finally {
       setIsLoading(false);
     }
   };
 
   const uploadImage = async (image: any, content: string) => {
+    const tempMessageId = `temp_${Date.now()}`;
+    
     try {
       setIsLoading(true);
       setShowImageModal(false);
 
       // Add user message immediately
       const userMessage: Message = {
-        messageId: `temp_${Date.now()}`,
+        messageId: tempMessageId,
         role: 'user',
         content: content,
         messageType: 'image_upload',
@@ -223,7 +237,8 @@ export default function ChatInterface({
 
       setMessages(prev => [...prev, userMessage]);
 
-      // Upload to API
+      // Upload to API - pass image object directly
+      // The image object will be properly handled in the service layer
       const response = await chatApiService.uploadImage({
         conversationId,
         content,
@@ -259,12 +274,20 @@ export default function ChatInterface({
       // Scroll to bottom
       scrollToBottom();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to upload image:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      console.log("error",error); 
+      const errorMessage = error?.message || 'Unknown error occurred';
+      console.error('Upload error details:', {
+        error: errorMessage,
+        conversationId,
+        imageType: image?.type,
+        imageSize: image?.fileSize,
+      });
+      Alert.alert('Error', `Failed to upload image: ${errorMessage}`);
       
-      // Remove temp message on error
-      setMessages(prev => prev.filter(msg => msg.messageId !== `temp_${Date.now()}`));
+      // Remove temp message on error using the actual temp ID
+      setMessages(prev => prev.filter(msg => msg.messageId !== tempMessageId));
     } finally {
       setIsLoading(false);
     }
@@ -276,12 +299,7 @@ export default function ChatInterface({
     
     // If the URL is already absolute with a protocol, return as is
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Replace localhost URLs with proper API URL if needed
-      if (url.includes('localhost:5000') && !url.includes(API_URL)) {
-        const replacedUrl = url.replace(/http:\/\/localhost:5000/g, API_URL);
-        console.log('Preview - Replaced URL:', replacedUrl);
-        return replacedUrl;
-      }
+      // For localhost URLs, keep them as-is since they should work on the same machine
       console.log('Preview - Using URL as-is:', url);
       return url;
     }
@@ -431,7 +449,7 @@ export default function ChatInterface({
       <ImageUploadModal
         visible={showImageModal}
         onClose={() => setShowImageModal(false)}
-        onImageSelected={setSelectedImage}
+        onImageSelected={() => {}} // Don't store image in parent to avoid "Already read"
         onUpload={uploadImage}
         isLoading={isLoading}
       />

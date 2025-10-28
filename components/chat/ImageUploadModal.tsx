@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -159,7 +160,7 @@ export default function ImageUploadModal({
             <View style={styles.promptContainer}>
               <Text style={styles.promptLabel}>Edit instructions:</Text>
               <View style={styles.textInputContainer}>
-                <Text
+                <TextInput
                   style={styles.textInput}
                   placeholder="e.g., Add a beautiful sunset in the background, Change the color to blue, Add a person walking..."
                   placeholderTextColor="#999"

@@ -58,12 +58,8 @@ export default function MessageBubble({
     
     // If the URL is already absolute with a protocol, return as is
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      // Replace localhost URLs with proper API URL if needed
-      if (url.includes('localhost:5000') && !url.includes(API_URL)) {
-        const replacedUrl = url.replace(/http:\/\/localhost:5000/g, API_URL);
-        console.log('Replaced URL:', replacedUrl);
-        return replacedUrl;
-      }
+      // For localhost URLs, keep them as-is since they should work on the same machine
+      // On Android emulator, 10.0.2.2 maps to host machine localhost
       console.log('Using URL as-is:', url);
       return url;
     }
@@ -130,7 +126,7 @@ export default function MessageBubble({
         {!isLoading && (
           <>
             {/* Image Display */}
-            {message.imageUrl ? (
+            {message.imageUrl && (
               <TouchableOpacity
                 style={styles.imageContainer}
                 onPress={() => onImagePress?.(message.imageUrl!)}
@@ -195,13 +191,6 @@ export default function MessageBubble({
                 
 
               </TouchableOpacity>
-            ) : isImageMessage && (
-              <View style={styles.imageContainer}>
-                <View style={styles.imageErrorContainer}>
-                  <MaterialIcons name="image" size={48} color="#CCC" />
-                  <Text style={styles.imageErrorText}>Image not available</Text>
-                </View>
-              </View>
             )}
 
             {/* Previous Image (for edits) */}
@@ -223,8 +212,8 @@ export default function MessageBubble({
               </View>
             )}
 
-            {/* Text Content - Hidden for image messages to show only the image */}
-            {!isImageMessage && (
+            {/* Text Content - Show for all messages, even image messages if there's no image */}
+            {(!isImageMessage || !message.imageUrl) && (
               <Text style={[styles.messageText, isUser ? styles.userText : styles.assistantText]}>
                 {message.content}
               </Text>
