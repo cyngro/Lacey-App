@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
 import { clearToken, getToken, saveToken, saveFaceIdPreference, getFaceIdPreference, saveFaceIdCredentials, getFaceIdCredentials, clearFaceIdCredentials } from '../utils/authStorage';
 import { FaceIdService, FaceIdResult } from '../utils/faceIdService';
 
@@ -25,23 +26,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
   const [faceIdAvailable, setFaceIdAvailable] = useState(false);
+  const [lastActiveTime, setLastActiveTime] = useState<number>(Date.now());
 
-  useEffect(() => {
-    checkAuthStatus();
-    checkFaceIdAvailability();
-    loadFaceIdPreference();
-  }, []);
+  // Session timeout (24 hours)
+  const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
   // Debug state changes
   useEffect(() => {
     console.log("AuthContext: State changed - isAuthenticated:", isAuthenticated, "selectedCompany:", selectedCompany);
   }, [isAuthenticated, selectedCompany]);
 
-  async function checkAuthStatus() {
+  const checkAuthStatus = useCallback(async () => {
     try {
       console.log("AuthContext: Checking auth status");
       const token = await getToken();
       console.log("AuthContext: Token found:", token ? "exists" : "null");
+      
       if (!token) {
         console.log("AuthContext: No token, setting authenticated to false");
         setIsAuthenticated(false);
@@ -59,24 +59,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      setIsAuthenticated(false);
+      // Don't automatically logout on error - keep current state
+      console.log("AuthContext: Auth check failed, keeping current authentication state");
     } finally {
       setIsLoading(false);
     }
-  }
+  }, []);
 
-  async function login(token: string) {
-    // Token is already saved by the login component before calling this function
-    console.log("AuthContext: Setting isAuthenticated to true");
-    console.log("AuthContext: Current isAuthenticated state:", isAuthenticated);
-    setIsAuthenticated(true);
-    console.log("AuthContext: Authentication state updated to true");
-    
-    // No need to re-check auth status since we just set it to true
-    // The token is already saved and we're explicitly setting authenticated to true
-  }
-
-  async function logout() {
+  const logout = useCallback(async () => {
     console.log("AuthContext: Starting logout process");
     console.log("AuthContext: Current isAuthenticated:", isAuthenticated);
     await clearToken();
@@ -94,7 +84,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => {
       console.log("AuthContext: Logout process completed, final state:", isAuthenticated);
     }, 100);
-  }
+  }, [isAuthenticated]);
+
+  const login = useCallback(async (token: string) => {
+    // Token is already saved by the login component before calling this function
+    console.log("AuthContext: Setting isAuthenticated to true");
+    console.log("AuthContext: Current isAuthenticated state:", isAuthenticated);
+    setIsAuthenticated(true);
+    setLastActiveTime(Date.now()); // Update last active time on login
+    console.log("AuthContext: Authentication state updated to true");
+    
+    // No need to re-check auth status since we just set it to true
+    // The token is already saved and we're explicitly setting authenticated to true
+  }, [isAuthenticated]);
+
+  // Initialize auth and setup app state listeners
+  useEffect(() => {
+    checkAuthStatus();
+    checkFaceIdAvailability();
+    loadFaceIdPreference();
+    
+    // Add app state listener to handle background/foreground transitions
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      console.log('App state changed to:', nextAppState);
+      
+      if (nextAppState === 'active') {
+        // App came to foreground - update last active time and recheck auth
+        console.log('App became active, updating last active time and rechecking auth status...');
+        setLastActiveTime(Date.now());
+        
+        // Check if session has expired
+        const now = Date.now();
+        const timeSinceLastActive = now - lastActiveTime;
+        
+        if (timeSinceLastActive > SESSION_TIMEOUT) {
+          console.log('Session expired due to inactivity, logging out...');
+          logout();
+        } else {
+          console.log('Session still valid, rechecking auth status...');
+          checkAuthStatus();
+        }
+      } else if (nextAppState === 'background') {
+        // App went to background - update last active time
+        console.log('App went to background, updating last active time...');
+        setLastActiveTime(Date.now());
+      }
+      // Don't do anything when app goes to inactive - keep user logged in
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [checkAuthStatus, logout, SESSION_TIMEOUT, lastActiveTime]);
 
   function selectCompany(company: string) {
     setSelectedCompany(company);

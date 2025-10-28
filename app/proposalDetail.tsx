@@ -296,16 +296,20 @@ export default function ProposalDetailScreen() {
     if (!proposal) return;
     
     try {
+      console.log('🔄 Starting proposal generation in proposalDetail...');
+      const userData = await fetchUserData();
+      console.log('👤 User data for proposal:', userData);
+      
       const { generateProposalPDF } = await import("../utils/pdfGenerator");
-      await generateProposalPDF(proposal);
+      await generateProposalPDF(proposal, userData || undefined);
       
       Alert.alert(
         "Proposal Generated",
         "Proposal has been generated and is ready to share!",
         [{ text: "OK" }]
       );
-    } catch {
-      console.error('Proposal generation error');
+    } catch (error) {
+      console.error('Proposal generation error:', error);
       Alert.alert(
         "Error",
         "Failed to generate proposal. Please try again."
@@ -313,20 +317,66 @@ export default function ProposalDetailScreen() {
     }
   }
 
+  const fetchUserData = async () => {
+    try {
+      console.log('🔍 Fetching user data in proposalDetail...');
+      const token = await getToken();
+      console.log('🔑 Token exists:', !!token);
+      
+      if (!token) {
+        console.log('❌ No token found');
+        return null;
+      }
+
+      console.log('🌐 Making API call to:', `${API_URL}/api/user/profile`);
+      const response = await fetch(`${API_URL}/api/user/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('✅ User data received in proposalDetail:', userData);
+        return {
+          name: userData.name,
+          email: userData.email,
+          phone: userData.phone
+        };
+      } else {
+        const errorText = await response.text();
+        console.log('❌ API Error:', errorText);
+        return null;
+      }
+    } catch (error) {
+      console.error('💥 Error fetching user data in proposalDetail:', error);
+      return null;
+    }
+  };
+
   async function handleDownloadInvoice() {
     if (!proposal) return;
     
     try {
+      console.log('🔄 Starting invoice generation in proposalDetail...');
+      const userData = await fetchUserData();
+      console.log('👤 User data for invoice:', userData);
+      
       const { generateInvoicePDF } = await import("../utils/pdfGenerator");
-      await generateInvoicePDF(proposal);
+      await generateInvoicePDF(proposal, userData || undefined);
       
       Alert.alert(
         "Invoice Generated",
         "Invoice has been generated and is ready to share!",
         [{ text: "OK" }]
       );
-    } catch {
-      console.error('Invoice generation error');
+    } catch (error) {
+      console.error('Invoice generation error:', error);
       Alert.alert(
         "Error",
         "Failed to generate invoice. Please try again."
@@ -792,16 +842,6 @@ export default function ProposalDetailScreen() {
           )}
         </View>
 
-        {/* Submitted By Section - Only show if user data exists */}
-        {proposal?.createdBy && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Submitted By:</Text>
-            <View style={styles.sectionContent}>
-              <Text style={styles.submittedText}>User ID: {typeof proposal.createdBy === 'string' ? proposal.createdBy : proposal.createdBy.id}</Text>
-              <Text style={styles.submittedText}>Created: {new Date(proposal.createdAt).toLocaleDateString()}</Text>
-            </View>
-          </View>
-        )}
 
         {editing && (
           <View style={styles.buttonContainer}>
