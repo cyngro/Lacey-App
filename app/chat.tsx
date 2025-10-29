@@ -122,7 +122,7 @@ export default function ChatScreen() {
                 );
               }}
             >
-              <MaterialIcons name="clear-all" size={24} color="#00234C" />
+              {/* <MaterialIcons name="clear-all" size={24} color="#00234C" /> */}
             </TouchableOpacity>
           )
         }
