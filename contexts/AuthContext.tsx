@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { AppState, AppStateStatus } from 'react-native';
 import { clearToken, getToken, saveToken, saveFaceIdPreference, getFaceIdPreference, saveFaceIdCredentials, getFaceIdCredentials, clearFaceIdCredentials } from '../utils/authStorage';
 import { FaceIdService, FaceIdResult } from '../utils/faceIdService';
+import { API_URL } from '../constants/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -229,7 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("Face ID authentication successful, logging in with saved credentials");
         
         try {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://lacey-backend-production.up.railway.app'}/api/auth/signin`, {
+          const response = await fetch(`${API_URL}/api/auth/signin`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
@@ -283,7 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function setupFaceIdCredentials(email: string, password: string): Promise<boolean> {
     try {
       // First verify the credentials by attempting to login
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://lacey-backend-production.up.railway.app'}/api/auth/signin`, {
+      const response = await fetch(`${API_URL}/api/auth/signin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
