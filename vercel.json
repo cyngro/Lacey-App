@@ -1,6 +1,8 @@
 {
-  "buildCommand": "npx expo export -p web --output-dir web-build",
+  "buildCommand": "npx expo export --platform web --output-dir web-build",
   "outputDirectory": "web-build",
- "framework": "create-react-app"
+  "framework": "create-react-app",
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
-
