@@ -14,6 +14,7 @@ import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
 import ChatInterface from '../components/chat/ChatInterface';
 import { ConversationDetails } from '../types/chat';
+import { chatApiService } from '../services/chatApi';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -34,7 +35,6 @@ export default function ChatScreen() {
 
       // Otherwise, load or create a conversation
       try {
-        const { chatApiService } = await import('../services/chatApi');
         const response = await chatApiService.getConversations(1, 1);
         
         if (response.data?.conversations?.length > 0) {
@@ -48,7 +48,6 @@ export default function ChatScreen() {
         console.error('Failed to initialize conversation:', error);
         // Try to create a new conversation anyway
         try {
-          const { chatApiService } = await import('../services/chatApi');
           const createResponse = await chatApiService.createConversation({ title: 'New Chat' });
           setCurrentConversationId(createResponse.data.conversationId);
         } catch (createError) {

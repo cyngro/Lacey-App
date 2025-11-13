@@ -13,6 +13,7 @@ import {
   ConversationDetails,
   ConversationStats
 } from '../types/chat';
+import { getToken } from '../utils/authStorage';
 
 class ChatApiService {
   private baseUrl: string;
@@ -45,7 +46,6 @@ class ChatApiService {
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
     try {
-      const { getToken } = await import('../utils/authStorage');
       const token = await getToken();
       if (token) {
         return {
