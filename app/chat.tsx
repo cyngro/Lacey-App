@@ -1,116 +1,137 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
-  FlatList,
-  TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Header from '../components/Header';
 import BottomNavbar from '../components/BottomNavbar';
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'other';
-  timestamp: string;
-}
+import ChatInterface from '../components/chat/ChatInterface';
+import { ConversationDetails } from '../types/chat';
+import { chatApiService } from '../services/chatApi';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const [messages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'Human',
-      sender: 'user',
-      timestamp: '10:30 AM',
-    },
-    {
-      id: '2',
-      text: 'ai chatbot',
-      sender: 'other',
-      timestamp: '10:30 AM',
-    },
-    {
-      id: '3',
-      text: 'Human',
-      sender: 'user',
-      timestamp: '10:31 AM',
-    },
-    {
-      id: '4',
-      text: 'ai chatbot',
-      sender: 'other',
-      timestamp: '10:31 AM',
-    },
-    {
-      id: '5',
-      text: 'Human',
-      sender: 'user',
-      timestamp: '10:32 AM',
-    },
-    {
-      id: '6',
-      text: 'ai chatbot',
-      sender: 'other',
-      timestamp: '10:32 AM',
-    },
-  ]);
-  const [newMessage] = useState('');
+  const { conversationId } = useLocalSearchParams<{ conversationId?: string }>();
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId || null);
+  const [conversationDetails, setConversationDetails] = useState<ConversationDetails | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
+  // Load or create a conversation on mount
+  useEffect(() => {
+    const initializeConversation = async () => {
+      // If conversationId is provided from URL, use it
+      if (conversationId) {
+        setCurrentConversationId(conversationId);
+        setIsInitializing(false);
+        return;
+      }
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <View style={[
-      styles.messageContainer,
-      item.sender === 'user' ? styles.userMessage : styles.otherMessage
-    ]}>
-      <Text style={[
-        styles.messageText,
-        item.sender === 'user' ? styles.userMessageText : styles.otherMessageText
-      ]}>
-        {item.text}
-      </Text>
-    </View>
-  );
+      // Otherwise, load or create a conversation
+      try {
+        const response = await chatApiService.getConversations(1, 1);
+        
+        if (response.data?.conversations?.length > 0) {
+          setCurrentConversationId(response.data.conversations[0].conversationId);
+        } else {
+          // Create a new conversation if none exist
+          const createResponse = await chatApiService.createConversation({ title: 'New Chat' });
+          setCurrentConversationId(createResponse.data.conversationId);
+        }
+      } catch (error) {
+        console.error('Failed to initialize conversation:', error);
+        // Try to create a new conversation anyway
+        try {
+          const createResponse = await chatApiService.createConversation({ title: 'New Chat' });
+          setCurrentConversationId(createResponse.data.conversationId);
+        } catch (createError) {
+          console.error('Failed to create conversation:', createError);
+        }
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    
+    initializeConversation();
+  }, [conversationId]);
+
+  const handleConversationUpdate = useCallback((conversation: ConversationDetails) => {
+    setConversationDetails(conversation);
+  }, []);
+
+  const getHeaderTitle = () => {
+    if (conversationDetails) {
+      return conversationDetails.title;
+    }
+    return 'AI Chat';
+  };
+
+  if (isInitializing || !currentConversationId) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Header />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00234C" />
+          <Text style={styles.loadingText}>Loading chat...</Text>
+        </View>
+        <BottomNavbar
+          activeTab="chat"
+          onTabPress={(tab) => {
+            if (tab === 'home') {
+              router.push('/dashboard');
+            } else if (tab === 'profile') {
+              router.push('/profile');
+            }
+          }}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header />
-      
-      <View style={styles.chatContainer}>
-        <FlatList
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          style={styles.messagesList}
-          contentContainerStyle={styles.messagesContent}
-        />
-
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.inputContainer}
-        >
-          <View style={styles.inputWrapper}>
-            <MaterialIcons name="image" size={20} color="#666" />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Image Generation"
-              placeholderTextColor="#999"
-              value={newMessage}
-              onChangeText={() => {}}
-              multiline
-            />
-            <TouchableOpacity style={styles.sendButton}>
-              <MaterialIcons name="send" size={20} color="#fff" />
+      <Header 
+        title={getHeaderTitle()}
+        showBackButton={false}
+        rightActions={
+          (
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => {
+                Alert.alert(
+                  'Clear Conversation',
+                  'Are you sure you want to clear all messages in this conversation?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Clear',
+                      style: 'destructive',
+                      onPress: () => {
+                        // TODO: Implement clear conversation
+                        Alert.alert('Info', 'Clear conversation feature will be implemented');
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              {/* <MaterialIcons name="clear-all" size={24} color="#00234C" /> */}
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+          )
+        }
+      />
+      
+      <View style={styles.content}>
+        <ChatInterface
+          conversationId={currentConversationId}
+          onConversationUpdate={handleConversationUpdate}
+        />
       </View>
 
       <BottomNavbar
@@ -131,76 +152,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingHorizontal: 20,
   },
-  chatContainer: {
+  content: {
     flex: 1,
   },
-  messagesList: {
+  loadingContainer: {
     flex: 1,
-  },
-  messagesContent: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  messageContainer: {
-    maxWidth: '80%',
-    marginBottom: 16,
-    padding: 12,
-    borderRadius: 12,
-  },
-  userMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#00234C',
-  },
-  otherMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F5F5F5',
-  },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  userMessageText: {
-    color: '#fff',
-  },
-  otherMessageText: {
-    color: '#333',
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 4,
-    textAlign: 'right',
-  },
-  inputContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 5,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 20,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    maxHeight: 100,
-    paddingVertical: 8,
-    marginHorizontal: 8,
-  },
-  sendButton: {
-    backgroundColor: '#00234C',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
+  headerButton: {
+    padding: 8,
   },
 });
